@@ -9,7 +9,7 @@ list(APPEND osdlp_sources
         osdlp/src/tc.c
         osdlp/src/tm.c
 )
-
+set(CMAKE_BUILD_TYPE "RELWITHDEBINFO")
 add_library(osdlp SHARED ${osdlp_sources}) 
 
-#target_link_libraries(osdlp m)
+target_link_libraries(osdlp m)
