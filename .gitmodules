@@ -1,0 +1,6 @@
+[submodule "osdlp"]
+	path = osdlp
+	url = https://gitlab.com/librespacefoundation/osdlp.git
+[submodule "lib/osdlp"]
+	path = lib/osdlp
+	url = https://gitlab.com/librespacefoundation/osdlp.git
