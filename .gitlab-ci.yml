@@ -1,0 +1,35 @@
+variables:
+  GITLAB_CI_IMAGE_DEBIAN: 'debian:buster'
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - style
+  - test
+
+style:
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  stage: style
+  before_script:
+    - apt-get -q update
+    - apt-get -qy install astyle
+  script:
+    - 'astyle --dry-run --options=.astylerc --formatted src/*.cpp src/*.h | sed ''s/^Formatted/ERROR: Unformatted/;T;q1'''
+test:
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  stage: test
+  before_script:
+    - apt-get -q update
+    - >
+      apt-get -qy install
+      build-essential
+      cmake
+      doxygen
+      git
+      libconfig++-dev
+    
+  script:
+    - mkdir -p build
+    - cd build
+    - cmake  ..
+    - make
+ 

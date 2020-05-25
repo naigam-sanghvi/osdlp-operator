@@ -1,0 +1,21 @@
+# astyle parameters
+--errors-to-stdout
+--lineend=linux
+--preserve-date
+--suffix=none
+--style=linux
+--attach-extern-c
+--attach-closing-while
+--break-return-type
+--break-return-type-decl
+--indent=tab=8
+--align-pointer=name
+--align-reference=name
+--pad-header
+--unpad-paren
+--pad-oper
+#--convert-tabs
+--max-code-length=80
+--indent-switches
+--break-one-line-headers
+
