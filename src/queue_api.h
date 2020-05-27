@@ -41,10 +41,19 @@ get_tm_configs();
 struct mission_params
 get_mission_params();
 
-struct tm_transfer_frame
+struct tm_transfer_frame *
 get_last_tm();
+
+struct tc_transfer_frame *
+get_last_tc();
 
 int
 init_structs(std::string path);
+
+virtual_channel::sptr
+get_vc_tc(uint16_t id);
+
+virtual_channel::sptr
+get_vc_tm(uint16_t id);
 
 #endif /* INCLUDE_QUEUE_API_H_ */

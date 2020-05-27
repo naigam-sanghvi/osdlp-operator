@@ -26,6 +26,8 @@ test:
       doxygen
       git
       libconfig++-dev
+      libncurses6
+      libncurses-dev
     
   script:
     - mkdir -p build

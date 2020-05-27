@@ -6,7 +6,9 @@ project(osdlp-operator LANGUAGES C CXX VERSION 1.0)
 # Make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
-SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread")
+SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread -lncurses -ltinfo")
+
+set(CMAKE_BUILD_TYPE "RelwithDebInfo")
 
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -18,6 +20,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #@ONLY)
 
 find_package(Config++ REQUIRED)
+find_package(Curses REQUIRED)
 
 add_subdirectory(lib)
 add_subdirectory(src)

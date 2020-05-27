@@ -32,12 +32,19 @@ uint8_t mc_count;
 uint8_t tc_util[TC_MAX_SDU_LEN];
 uint8_t tm_util[TM_MAX_SDU_LEN];
 
-struct tm_transfer_frame last_tm;
+struct tm_transfer_frame *last_tm;
+struct tc_transfer_frame *last_tc;
 
-struct tm_transfer_frame
+struct tm_transfer_frame *
 get_last_tm()
 {
 	return last_tm;
+}
+
+struct tc_transfer_frame *
+get_last_tc()
+{
+	return last_tc;
 }
 
 struct mission_params
@@ -67,21 +74,35 @@ init_structs(std::string path)
 	return 0;
 }
 
-extern "C" {
-	virtual_channel::sptr get_vc(uint16_t id)
-	{
-		for (virtual_channel::sptr vc : vc_tc_configs) {
-			if (vc->get_vcid() == id) {
-				return vc;
-			}
+virtual_channel::sptr
+get_vc_tm(uint16_t id)
+{
+	for (virtual_channel::sptr vc : vc_tm_configs) {
+		if (vc->get_vcid() == id) {
+			return vc;
 		}
-		return NULL;
 	}
+	return NULL;
+}
+
+virtual_channel::sptr
+get_vc_tc(uint16_t id)
+{
+	for (virtual_channel::sptr vc : vc_tc_configs) {
+		if (vc->get_vcid() == id) {
+			return vc;
+		}
+	}
+	return NULL;
+}
+
+extern "C" {
+
 
 	int
 	tc_wait_queue_enqueue(void *tc_tf, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		vc->get_wait_queue().push_back(vc->get_tc_config());
@@ -91,7 +112,7 @@ extern "C" {
 	int
 	tc_wait_queue_dequeue(void *tc_tf, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		vc->get_wait_queue().pop_back();
@@ -102,7 +123,7 @@ extern "C" {
 	bool
 	tc_wait_queue_empty(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
 		if (vc->get_wait_queue().size() == 0) {
@@ -115,7 +136,7 @@ extern "C" {
 	int
 	tc_wait_queue_clear(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		vc->get_wait_queue().clear();
@@ -125,7 +146,7 @@ extern "C" {
 	int
 	tc_sent_queue_clear(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		vc->get_sent_queue().clear();
@@ -136,7 +157,7 @@ extern "C" {
 	uint16_t
 	tc_sent_queue_size(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		return vc->get_sent_queue().size();
@@ -145,7 +166,7 @@ extern "C" {
 	int
 	tc_sent_queue_dequeue(struct queue_item *qi, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		struct local_queue_item new_item;
@@ -156,7 +177,7 @@ extern "C" {
 	int
 	tc_sent_queue_enqueue(struct queue_item *qi, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		uint16_t frame_len = (((qi->fdu[2] & 0x03) << 8) | qi->fdu[3]);
@@ -172,7 +193,7 @@ extern "C" {
 	bool
 	tc_sent_queue_empty(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
 		if (vc->get_sent_queue().size() == 0) {
@@ -185,7 +206,7 @@ extern "C" {
 	bool
 	tc_sent_queue_full(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
 		if (vc->get_sent_queue().size() == m_params.tc_sent_queue_max_cap) {
@@ -198,7 +219,7 @@ extern "C" {
 	int
 	tc_sent_queue_head(struct queue_item *qi, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		struct local_queue_item item;
@@ -217,16 +238,17 @@ extern "C" {
 	struct tc_transfer_frame *
 	tc_get_tx_config(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return NULL;
+
 		return &vc->get_tc_config();
 	}
 
 	bool
 	tc_rx_queue_full(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
 		if (vc->get_rx_queue().size() == m_params.tc_rx_queue_max_cap) {
@@ -251,7 +273,7 @@ extern "C" {
 	int
 	tc_tx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		uint16_t length = (((buffer[2] & 0x03) << 8) | buffer[3]) + 1;
@@ -291,7 +313,7 @@ extern "C" {
 	int
 	tc_rx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		if (vc->get_rx_queue().size() < m_params.tc_rx_queue_max_cap) {
@@ -307,7 +329,7 @@ extern "C" {
 	int
 	tc_rx_queue_enqueue_now(uint8_t *buffer, uint8_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		if (vc->get_rx_queue().size() < m_params.tc_rx_queue_max_cap) {
@@ -327,10 +349,11 @@ extern "C" {
 	int
 	tc_get_rx_config(struct tc_transfer_frame **tf, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		*tf = &vc->get_tc_config();
+		last_tc = &vc->get_tc_config();
 		return 0;
 	}
 
@@ -346,7 +369,7 @@ extern "C" {
 	int
 	mark_ad_as_rt(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		for (int i = 0; i < vc->get_sent_queue().size() ; i++) {
@@ -360,7 +383,7 @@ extern "C" {
 	int
 	get_first_ad_rt_frame(struct queue_item *qi, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		for (int i = 0; i < vc->get_sent_queue().size() ; i++) {
@@ -379,7 +402,7 @@ extern "C" {
 	int
 	reset_rt_frame(struct queue_item *qi, uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		for (int i = 0; i < vc->get_sent_queue().size() ; i++) {
@@ -394,7 +417,7 @@ extern "C" {
 	int
 	mark_bc_as_rt(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		if (vc->get_sent_queue().front().type == TYPE_B) {
@@ -406,7 +429,7 @@ extern "C" {
 	int
 	tc_rx_queue_clear(uint16_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		vc->get_rx_queue().clear();
@@ -416,7 +439,7 @@ extern "C" {
 	bool
 	tm_tx_queue_empty(uint8_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
 		if (vc->get_tx_queue().size() == 0) {
@@ -429,7 +452,7 @@ extern "C" {
 	int
 	tm_tx_queue_back(uint8_t **pkt, uint8_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
 		if (vc->get_tx_queue().size() == 0) {
@@ -442,7 +465,7 @@ extern "C" {
 	int
 	tm_tx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
 		std::vector<uint8_t> vec;
@@ -454,7 +477,7 @@ extern "C" {
 	int
 	tm_rx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
 		std::vector<uint8_t> vec;
@@ -487,11 +510,11 @@ extern "C" {
 	int
 	tm_get_rx_config(struct tm_transfer_frame **tm, uint8_t vcid)
 	{
-		virtual_channel::sptr vc = get_vc(vcid);
+		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
 		*tm = &vc->get_tm_config();
-		last_tm = vc->get_tm_config();
+		last_tm = &vc->get_tm_config();
 		return 0;
 	}
 }

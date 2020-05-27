@@ -60,12 +60,26 @@ load_config(const std::string path,
 
 		root.lookupValue("instance", instance);
 
+		if (instance.compare("farm") != 0  && instance.compare("fop") != 0) {
+			throw std::runtime_error("Wrong instance\n");
+		}
+		m_params->instance = instance;
+
 		if (!(root.exists("mission"))) {
 			throw std::runtime_error("Mission params missing");
 		}
 
 		const libconfig::Setting &miss = root["mission"];
 		int ret;
+
+		if (miss.exists("in_port")) {
+			miss.lookupValue("in_port", ret);
+			m_params->in_port = (size_t)ret;
+		}
+		if (miss.exists("out_port")) {
+			miss.lookupValue("out_port", ret);
+			m_params->out_port = (size_t)ret;
+		}
 
 		if (miss.exists("tc_max_sdu_len")) {
 			miss.lookupValue("tc_max_sdu_len", ret);
@@ -212,7 +226,7 @@ load_config(const std::string path,
 			        (tm_sec_hdr_flag_t)sec_hdr_on, (tm_sync_flag_t)sync_flag,
 			        0, NULL, ocf, (tm_crc_flag_t)crc, m_params->tm_frame_len,
 			        m_params->tm_max_sdu_len, MAX_TM_VCS, 0, (tm_stuff_state_t)stuff_state,
-			        tc_util);
+			        tm_util);
 			virtual_channel::sptr vc_tm = virtual_channel::make_shared(tm_f,
 			                              tm_f.mission.vcid);
 			vc_tm_configs->push_back(vc_tm);
