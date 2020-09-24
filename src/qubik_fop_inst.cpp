@@ -100,16 +100,16 @@ qubik_fop_inst::fop_transmitter()
 		wscanw(local_win, "%d", &input);
 		switch (input) {
 			case 1:
-				initiate_with_clcw(tr);
+				osdlp_initiate_with_clcw(tr);
 				break;
 			case 2:
-				initiate_no_clcw(tr);
+				osdlp_initiate_no_clcw(tr);
 				break;
 			case 3:
-				initiate_with_setvr(tr, 0);
+				osdlp_initiate_with_setvr(tr, 0);
 				break;
 			case 4:
-				initiate_with_unlock(tr);
+				osdlp_initiate_with_unlock(tr);
 				break;
 		}
 		uint8_t *pt = &vc->get_tx_queue().front()[0];
@@ -164,13 +164,15 @@ qubik_fop_inst::fop_receiver()
 		n = recvfrom(sockfd, (char *) rx_buffer, TM_FRAME_LEN,
 		             MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
 		if (n > 0) {
-			int ret = tm_receive(rx_buffer);
+			volatile int ret = osdlp_tm_receive(rx_buffer);
 			struct tm_transfer_frame *tm = get_last_tm();
-			ocf[0] = tm->ocf >> 24;
-			ocf[1] = (tm->ocf >> 16) & 0xff;
-			ocf[2] = (tm->ocf >> 8) & 0xff;
-			ocf[3] = tm->ocf & 0xff;
-			clcw_unpack(&clcw, ocf);
+			memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
+
+//			ocf[0] = tm->ocf[0];
+//			ocf[1] = tm->ocf[1];
+//			ocf[2] = tm->ocf[2];
+//			ocf[3] = tm->ocf[3];
+			osdlp_clcw_unpack(&clcw, ocf);
 			wprintw(local_win, " Control Word Type: %d\n"
 			        " CLCW Version Number : %d\n"
 			        " Status field: %d \n"
@@ -198,7 +200,7 @@ qubik_fop_inst::fop_receiver()
 			virtual_channel::sptr vc = get_vc_tc(clcw.vcid);
 			struct tc_transfer_frame tr = vc->get_tc_config();
 
-			handle_clcw(&tr, &clcw);
+			osdlp_handle_clcw(&tr, ocf);
 		}
 	}
 }

@@ -8,9 +8,7 @@
 #ifndef SRC_QUBIK_FOP_INST_H_
 #define SRC_QUBIK_FOP_INST_H_
 
-#include "fop_inst.h"
-
-class qubik_fop_inst : fop_instance
+class qubik_fop_inst
 {
 public:
 	qubik_fop_inst();

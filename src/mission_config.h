@@ -20,6 +20,7 @@
 #ifndef SRC_MISSION_CONFIG_H_
 #define SRC_MISSION_CONFIG_H_
 
+#include <string>
 
 #define OUTPUT_PORT  6666
 #define INPUT_PORT   6667

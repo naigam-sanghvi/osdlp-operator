@@ -76,13 +76,12 @@ qubik_farm_inst::farm_receiver()
 		n = recvfrom(sockfd, (char *) rx_buffer, TC_MAX_FRAME_LEN,
 		             MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
 
-		ret = tc_receive(rx_buffer, TC_MAX_FRAME_LEN);
+		ret = osdlp_tc_receive(rx_buffer, TC_MAX_FRAME_LEN);
 		tc = get_last_tc();
-		prepare_clcw(tc, &clcw);
-		clcw_pack(&clcw, ocf);
-		tm = get_vc_tm(clcw.vcid)->get_tm_config();
-		tm.ocf = ocf[0] << 24 | ocf[1] << 16 | ocf[2] << 8 | ocf[3];
-		tm_transmit_idle_fdu(&tm, clcw.vcid);
+		tm = get_vc_tm(tc->primary_hdr.vcid)->get_tm_config();
+		osdlp_prepare_clcw(tc, tm.ocf);
+
+		osdlp_tm_transmit_idle_fdu(&tm, tc->mission.clcw.vcid);
 		sendto(sockfd, tm.mission.util.buffer, TM_FRAME_LEN,
 		       MSG_CONFIRM, (const struct sockaddr *) &cliaddr, sizeof(cliaddr));
 	}

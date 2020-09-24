@@ -3,9 +3,7 @@ set(SOURCE_FILES
     config.cpp
     virtualchannel.cpp
     queue_api.cpp
-    fop_inst.cpp
     qubik_fop_inst.cpp
-    farm_inst.cpp
     qubik_farm_inst.cpp
    )
 

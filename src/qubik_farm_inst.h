@@ -8,9 +8,7 @@
 #ifndef SRC_QUBIK_FARM_INST_H_
 #define SRC_QUBIK_FARM_INST_H_
 
-#include "farm_inst.h"
-
-class qubik_farm_inst : farm_instance
+class qubik_farm_inst
 {
 public:
 	qubik_farm_inst();

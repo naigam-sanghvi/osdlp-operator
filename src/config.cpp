@@ -164,7 +164,7 @@ load_config(const std::string path,
 		}
 
 		/* ------------------------ TM -----------------------------------*/
-		int tm_vcid, crc, ocf, sec_hdr_on, sync_flag, stuff_state;
+		int tm_vcid, crc, ocf, ocf_type, sec_hdr_on, sync_flag, stuff_state;
 
 		const libconfig::Setting &tm_vcs = root["tm"];
 		size_t num_tms = tm_vcs.getLength();
@@ -198,6 +198,14 @@ load_config(const std::string path,
 			} else {
 				ocf = (tm_ocf_flag_t) 0;
 			}
+			if (tm_t.exists("ocf_type")) {
+				tm_t.lookupValue("ocf_type", ocf_type);
+				if (!(ocf_type == 1 || ocf_type == 0)) {
+					ocf_type = (tm_ocf_type_t) 0;
+				}
+			} else {
+				ocf_type = (tm_ocf_type_t) 0;
+			}
 			if (tm_t.exists("sec_hdr_on")) {
 				tm_t.lookupValue("sec_hdr_on", sec_hdr_on);
 				if (!(sec_hdr_on == 1 || sec_hdr_on == 0)) {
@@ -222,11 +230,12 @@ load_config(const std::string path,
 			} else {
 				stuff_state = (tm_stuff_state_t) 1;
 			}
-			tm_init(&tm_f, scid, mc_count, (uint8_t)tm_vcid, (tm_ocf_flag_t) ocf,
-			        (tm_sec_hdr_flag_t)sec_hdr_on, (tm_sync_flag_t)sync_flag,
-			        0, NULL, ocf, (tm_crc_flag_t)crc, m_params->tm_frame_len,
-			        m_params->tm_max_sdu_len, MAX_TM_VCS, 0, (tm_stuff_state_t)stuff_state,
-			        tm_util);
+			osdlp_tm_init(&tm_f, scid, mc_count, (uint8_t)tm_vcid, (tm_ocf_flag_t) ocf,
+			              (tm_ocf_type_t)ocf_type,
+			              (tm_sec_hdr_flag_t)sec_hdr_on, (tm_sync_flag_t)sync_flag,
+			              0, NULL, (tm_crc_flag_t)crc, m_params->tm_frame_len,
+			              m_params->tm_max_sdu_len, MAX_TM_VCS, 20, (tm_stuff_state_t)stuff_state,
+			              tm_util);
 			virtual_channel::sptr vc_tm = virtual_channel::make_shared(tm_f,
 			                              tm_f.mission.vcid);
 			vc_tm_configs->push_back(vc_tm);
@@ -277,9 +286,9 @@ load_config(const std::string path,
 					} else {
 						tt = (uint8_t)0;
 					}
-					prepare_fop(&cop.fop, (uint8_t)width,
-					            FOP_STATE_INIT, (uint16_t)t1_init,
-					            (uint8_t)tt, (uint8_t)tx_lim);
+					osdlp_prepare_fop(&cop.fop, (uint8_t)width,
+					                  FOP_STATE_INIT, (uint16_t)t1_init,
+					                  (uint8_t)tt, (uint8_t)tx_lim);
 				}
 			} else if (instance.compare("farm") == 0) {
 				if (!(tc_t.exists("farm"))) {
@@ -295,7 +304,7 @@ load_config(const std::string path,
 					} else {
 						width = 5;
 					}
-					prepare_farm(&cop.farm, FARM_STATE_OPEN, (uint16_t)width);
+					osdlp_prepare_farm(&cop.farm, FARM_STATE_OPEN, (uint16_t)width);
 				}
 			}
 			int ret;
@@ -327,10 +336,10 @@ load_config(const std::string path,
 			}
 			const libconfig::Setting &maps = tc_t["map"];
 			size_t num_maps = maps.getLength();
-			tc_init(&tc_f, scid, m_params->tc_max_sdu_len,
-			        m_params->tc_max_frame_len, m_params->tc_rx_queue_max_cap,
-			        tc_vcid, 0, (tc_crc_flag_t)tc_crc, (tc_seg_hdr_t)seg_hdr_flag,
-			        (tc_bypass_t)0, (tc_ctrl_t)0, tc_util, cop);
+			osdlp_tc_init(&tc_f, scid, m_params->tc_max_sdu_len,
+			              m_params->tc_max_frame_len, m_params->tc_rx_queue_max_cap,
+			              tc_vcid, 0, (tc_crc_flag_t)tc_crc, (tc_seg_hdr_t)seg_hdr_flag,
+			              (tc_bypass_t)0, (tc_ctrl_t)0, tc_util, cop);
 			virtual_channel::sptr vc_tc = virtual_channel::make_shared(tc_f,
 			                              tc_f.mission.vcid);
 			for (int j = 0; j < num_maps; j++) {

@@ -100,7 +100,7 @@ extern "C" {
 
 
 	int
-	tc_wait_queue_enqueue(void *tc_tf, uint16_t vcid)
+	osdlp_tc_wait_queue_enqueue(void *tc_tf, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -110,7 +110,7 @@ extern "C" {
 	}
 
 	int
-	tc_wait_queue_dequeue(void *tc_tf, uint16_t vcid)
+	osdlp_tc_wait_queue_dequeue(void *tc_tf, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -121,7 +121,7 @@ extern "C" {
 	}
 
 	bool
-	tc_wait_queue_empty(uint16_t vcid)
+	osdlp_tc_wait_queue_empty(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -134,7 +134,7 @@ extern "C" {
 	}
 
 	int
-	tc_wait_queue_clear(uint16_t vcid)
+	osdlp_tc_wait_queue_clear(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -144,7 +144,7 @@ extern "C" {
 	}
 
 	int
-	tc_sent_queue_clear(uint16_t vcid)
+	osdlp_tc_sent_queue_clear(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -155,7 +155,7 @@ extern "C" {
 	}
 
 	uint16_t
-	tc_sent_queue_size(uint16_t vcid)
+	osdlp_tc_sent_queue_size(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -164,7 +164,7 @@ extern "C" {
 	}
 
 	int
-	tc_sent_queue_dequeue(struct queue_item *qi, uint16_t vcid)
+	osdlp_tc_sent_queue_dequeue(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -175,7 +175,7 @@ extern "C" {
 	}
 
 	int
-	tc_sent_queue_enqueue(struct queue_item *qi, uint16_t vcid)
+	osdlp_tc_sent_queue_enqueue(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -191,7 +191,7 @@ extern "C" {
 	}
 
 	bool
-	tc_sent_queue_empty(uint16_t vcid)
+	osdlp_tc_sent_queue_empty(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -204,7 +204,7 @@ extern "C" {
 	}
 
 	bool
-	tc_sent_queue_full(uint16_t vcid)
+	osdlp_tc_sent_queue_full(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -217,7 +217,7 @@ extern "C" {
 	}
 
 	int
-	tc_sent_queue_head(struct queue_item *qi, uint16_t vcid)
+	osdlp_tc_sent_queue_head(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -236,7 +236,7 @@ extern "C" {
 	}
 
 	struct tc_transfer_frame *
-	tc_get_tx_config(uint16_t vcid)
+	osdlp_tc_get_tx_config(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -246,7 +246,7 @@ extern "C" {
 	}
 
 	bool
-	tc_rx_queue_full(uint16_t vcid)
+	osdlp_tc_rx_queue_full(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -259,7 +259,7 @@ extern "C" {
 	}
 
 	bool
-	tc_tx_queue_full()
+	osdlp_tc_tx_queue_full()
 	{
 		return false;
 //	if(vc->get_tx_queue().size() == TC_TX_QUEUE_MAX_CAP){
@@ -271,7 +271,7 @@ extern "C" {
 	}
 
 	int
-	tc_tx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
+	osdlp_tc_tx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -289,36 +289,36 @@ extern "C" {
 		if ((buffer[0] >> 5) & 0x01) {   // Type B
 			if ((buffer[0] >> 4) & 0x01) { // Control
 				if (ret < 0) {
-					bc_reject(&vc->get_tc_config());
+					osdlp_bc_reject(&vc->get_tc_config());
 				} else {
-					bc_accept(&vc->get_tc_config());
+					osdlp_bc_accept(&vc->get_tc_config());
 				}
 			} else {						// Data
 				if (ret < 0) {
-					bd_reject(&vc->get_tc_config());
+					osdlp_bd_reject(&vc->get_tc_config());
 				} else {
-					bd_accept(&vc->get_tc_config());
+					osdlp_bd_accept(&vc->get_tc_config());
 				}
 			}
 		} else { // Type A
 			if (ret < 0) {
-				ad_reject(&vc->get_tc_config());
+				osdlp_ad_reject(&vc->get_tc_config());
 			} else {
-				ad_accept(&vc->get_tc_config());
+				osdlp_ad_accept(&vc->get_tc_config());
 			}
 		}
 		return ret;
 	}
 
 	int
-	tc_rx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
+	osdlp_tc_rx_queue_enqueue(uint8_t *buffer, uint32_t length, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		if (vc->get_rx_queue().size() < m_params.tc_rx_queue_max_cap) {
 			std::vector<uint8_t> pkt;
-			pkt.insert(pkt.end(), buffer, &buffer[m_params.tc_max_sdu_len]);
+			pkt.insert(pkt.end(), buffer, &buffer[length]);
 			vc->get_rx_queue().push_back(pkt);
 			return 0;
 		} else {
@@ -327,27 +327,27 @@ extern "C" {
 	}
 
 	int
-	tc_rx_queue_enqueue_now(uint8_t *buffer, uint8_t vcid)
+	osdlp_tc_rx_queue_enqueue_now(uint8_t *buffer, uint32_t length, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
 		if (vc->get_rx_queue().size() < m_params.tc_rx_queue_max_cap) {
 			std::vector<uint8_t> pkt;
-			pkt.insert(pkt.end(), buffer, &buffer[m_params.tc_max_sdu_len]);
+			pkt.insert(pkt.end(), buffer, &buffer[length]);
 			vc->get_rx_queue().push_back(pkt);
 			return 0;
 		} else {
 			vc->get_rx_queue().pop_back();
 			std::vector<uint8_t> pkt;
-			pkt.insert(pkt.end(), buffer, &buffer[m_params.tc_max_sdu_len]);
+			pkt.insert(pkt.end(), buffer, &buffer[length]);
 			vc->get_rx_queue().push_back(pkt);
 			return 0;
 		}
 	}
 
 	int
-	tc_get_rx_config(struct tc_transfer_frame **tf, uint16_t vcid)
+	osdlp_tc_get_rx_config(struct tc_transfer_frame **tf, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -358,7 +358,7 @@ extern "C" {
 	}
 
 	int
-	cancel_lower_ops()
+	osdlp_cancel_lower_ops()
 	{
 		for (virtual_channel::sptr vc : vc_tc_configs) {
 			vc->get_tx_queue().clear();
@@ -367,7 +367,7 @@ extern "C" {
 	}
 
 	int
-	mark_ad_as_rt(uint16_t vcid)
+	osdlp_mark_ad_as_rt(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -381,7 +381,7 @@ extern "C" {
 	}
 
 	int
-	get_first_ad_rt_frame(struct queue_item *qi, uint16_t vcid)
+	osdlp_get_first_ad_rt_frame(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -400,7 +400,7 @@ extern "C" {
 	}
 
 	int
-	reset_rt_frame(struct queue_item *qi, uint16_t vcid)
+	osdlp_reset_rt_frame(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -415,7 +415,7 @@ extern "C" {
 	}
 
 	int
-	mark_bc_as_rt(uint16_t vcid)
+	osdlp_mark_bc_as_rt(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -427,7 +427,7 @@ extern "C" {
 	}
 
 	int
-	tc_rx_queue_clear(uint16_t vcid)
+	osdlp_tc_rx_queue_clear(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -437,7 +437,7 @@ extern "C" {
 	}
 
 	bool
-	tm_tx_queue_empty(uint8_t vcid)
+	osdlp_tm_tx_queue_empty(uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -450,7 +450,7 @@ extern "C" {
 	}
 
 	int
-	tm_tx_queue_back(uint8_t **pkt, uint8_t vcid)
+	osdlp_tm_tx_queue_back(uint8_t **pkt, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -463,7 +463,7 @@ extern "C" {
 	}
 
 	int
-	tm_tx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
+	osdlp_tm_tx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -475,7 +475,7 @@ extern "C" {
 	}
 
 	int
-	tm_rx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
+	osdlp_tm_rx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -487,7 +487,7 @@ extern "C" {
 	}
 
 	int
-	tm_get_packet_len(uint16_t *length, uint8_t *pkt, uint16_t mem_len)
+	osdlp_tm_get_packet_len(uint16_t *length, uint8_t *pkt, uint16_t mem_len)
 	{
 		if (mem_len >= 5) {
 			if (((pkt[3] << 8) | pkt[4]) <= m_params.tm_frame_len) {
@@ -502,19 +502,30 @@ extern "C" {
 	}
 
 	void
-	tm_tx_commit_back(uint8_t vcid)
+	osdlp_tm_tx_commit_back(uint8_t vcid)
 	{
 		return;
 	}
 
 	int
-	tm_get_rx_config(struct tm_transfer_frame **tm, uint8_t vcid)
+	osdlp_tm_get_rx_config(struct tm_transfer_frame **tm, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
 		*tm = &vc->get_tm_config();
 		last_tm = &vc->get_tm_config();
+		return 0;
+	}
+	int
+	osdlp_timer_start(uint16_t vcid)
+	{
+		return 0;
+	}
+
+	int
+	osdlp_timer_cancel(uint16_t vcid)
+	{
 		return 0;
 	}
 }
