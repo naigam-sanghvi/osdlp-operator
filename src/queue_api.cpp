@@ -22,12 +22,16 @@
 #include "config.h"
 
 #include <deque>
+#include <thread>
+#include <chrono>
+#include <vector>
 
 
 std::vector<virtual_channel::sptr> vc_tm_configs;
 std::vector<virtual_channel::sptr> vc_tc_configs;
 struct mission_params m_params;
 uint8_t mc_count;
+std::deque<unsigned long int> thread_vec;
 
 uint8_t tc_util[TC_MAX_SDU_LEN];
 uint8_t tm_util[TM_MAX_SDU_LEN];
@@ -517,15 +521,45 @@ extern "C" {
 		last_tm = &vc->get_tm_config();
 		return 0;
 	}
+
+	void
+	timer()
+	{
+		std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+		std::chrono::steady_clock::time_point end;
+		virtual_channel::sptr vc = get_vc_tc(1);
+		struct tc_transfer_frame tr = vc->get_tc_config();
+		while (1) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			end = std::chrono::steady_clock::now();
+			if (std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() >=
+			    tr.cop_cfg.fop.t1_init) {
+				osdlp_handle_timer_expired(&tr);
+				break;
+			}
+		}
+
+	}
+
 	int
 	osdlp_timer_start(uint16_t vcid)
 	{
+		if (thread_vec.size() > 1) {
+			thread_vec.pop_front();
+		}
+		std::thread t(timer);
+		thread_vec.push_back(t.native_handle());
+		t.detach();
 		return 0;
 	}
 
 	int
 	osdlp_timer_cancel(uint16_t vcid)
 	{
+		if (thread_vec.size() > 0) {
+			pthread_cancel(thread_vec.back());
+			thread_vec.pop_back();
+		}
 		return 0;
 	}
 }

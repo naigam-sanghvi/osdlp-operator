@@ -24,6 +24,25 @@ extern "C" {
 }
 
 WINDOW *status;
+std::vector<unsigned long int> thread_handle;
+
+void
+forward_frames(int sockfd, struct sockaddr_in servaddr)
+{
+	virtual_channel::sptr vc = get_vc_tc(1);
+	struct tc_transfer_frame *tr = &vc->get_tc_config();
+	uint8_t *pt;
+	int n, len;
+	while (1) {
+		if (vc->get_tx_queue().size() > 0) {
+			pt = &vc->get_tx_queue().front()[0];
+			sendto(sockfd, pt, vc->get_tc_config().primary_hdr.frame_len + 1,
+			       MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+			vc->get_tx_queue().pop_front();
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	}
+}
 
 qubik_fop_inst::qubik_fop_inst()
 {
@@ -82,6 +101,9 @@ qubik_fop_inst::fop_transmitter()
 	servaddr.sin_port = htons(get_mission_params().out_port);
 	servaddr.sin_addr.s_addr = inet_addr(OUTPUT_ADDR);
 
+//	std::thread t(forward_frames, sockfd, servaddr);
+//	thread_handle.push_back(t.native_handle());
+//	t.detach();
 	while (1) {
 		virtual_channel::sptr vc = get_vc_tc(1);
 		struct tc_transfer_frame *tr = &vc->get_tc_config();
@@ -99,6 +121,9 @@ qubik_fop_inst::fop_transmitter()
 		int input = 0;
 		wscanw(local_win, "%d", &input);
 		switch (input) {
+			case 0:
+				pthread_cancel(thread_handle.front());
+				exit(0);
 			case 1:
 				osdlp_initiate_with_clcw(tr);
 				break;
@@ -112,10 +137,6 @@ qubik_fop_inst::fop_transmitter()
 				osdlp_initiate_with_unlock(tr);
 				break;
 		}
-		uint8_t *pt = &vc->get_tx_queue().front()[0];
-		int n, len;
-		sendto(sockfd, pt, vc->get_tc_config().primary_hdr.frame_len + 1,
-		       MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
 	}
 	endwin();
 }
@@ -205,15 +226,10 @@ qubik_fop_inst::fop_receiver()
 	}
 }
 
-int
-timer_start(uint16_t vcid)
-{
-	return 0;
-}
 
-int
-timer_cancel(uint16_t vcid)
-{
-	return 0;
-}
+
+
+
+
+
 
