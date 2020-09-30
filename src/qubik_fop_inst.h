@@ -8,6 +8,8 @@
 #ifndef SRC_QUBIK_FOP_INST_H_
 #define SRC_QUBIK_FOP_INST_H_
 
+#define VCID 1
+
 class qubik_fop_inst
 {
 public:

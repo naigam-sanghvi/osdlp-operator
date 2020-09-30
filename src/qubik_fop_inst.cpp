@@ -29,7 +29,7 @@ uint8_t tx_buf[28];
 void
 forward_frames(int sockfd, struct sockaddr_in servaddr)
 {
-	virtual_channel::sptr vc = get_vc_tc(1);
+	virtual_channel::sptr vc = get_vc_tc(VCID);
 	struct tc_transfer_frame *tr = &vc->get_tc_config();
 	uint8_t *pt;
 	int n, len;
@@ -37,6 +37,7 @@ forward_frames(int sockfd, struct sockaddr_in servaddr)
 		if (vc->get_tx_queue().size() > 0) {
 			pt = &vc->get_tx_queue().front()[0];
 			memcpy(tx_buf, pt, vc->get_tc_config().primary_hdr.frame_len + 1);
+			std::cout << "TX: Frame sent " << std::endl;
 			sendto(sockfd, tx_buf, 28,
 			       MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
 			vc->get_tx_queue().pop_front();
@@ -81,11 +82,17 @@ qubik_fop_inst::fop_transmitter()
 	for (size_t i = 0; i < 28; i++)
 		tx_buf[i] = rand() % 256;
 	while (1) {
-		virtual_channel::sptr vc = get_vc_tc(1);
+		virtual_channel::sptr vc = get_vc_tc(VCID);
 		struct tc_transfer_frame *tr = &vc->get_tc_config();
 		input = 0;
+		std::cout << "Insert initialization option : \n"
+		          "1. Initiate with CLCW (Just wait until a packet arrives) \n"
+		          "2. Initiate no CLCW (Don't expect anything. We begin. \n"
+		          "3. Initiate with Set V(R) (Sends a command. Good for ping) \n"
+		          "4. Initiate with Unlock. (Another command. Also good for ping) \n " <<
+		          std::endl;
 		std::cin >> input;
-
+		std::cout << std::endl;
 		switch (input) {
 			case 0:
 				pthread_cancel(thread_handle.front());
@@ -140,8 +147,17 @@ qubik_fop_inst::fop_receiver()
 	while (1) {
 		n = recvfrom(sockfd, (char *) rx_buffer, TM_FRAME_LEN,
 		             MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
+
 		if (n > 0) {
+			std::cout << "RX: Received frame . Checking CLCW ... " << std::endl;
 			volatile int ret = osdlp_tm_receive(rx_buffer);
+			if (ret < 0) {
+				std::cout << "RX: OSDLP Error, Code : " << ret << std::endl;
+				continue;
+			}
+			if (ret == 3) {
+				std::cout << "RX: Only Idle Data " << std::endl;
+			}
 			struct tm_transfer_frame *tm = get_last_tm();
 			memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
 
@@ -155,6 +171,20 @@ qubik_fop_inst::fop_receiver()
 			struct tc_transfer_frame tr = vc->get_tc_config();
 
 			osdlp_handle_clcw(&tr, ocf);
+			std::cout << " Control Word Type: " << (int)clcw.ctrl_word_type <<
+			          " \nCLCW Version Number : " << (int)clcw.clcw_version_num <<
+			          " \nStatus field: " << (int)clcw.status_field <<
+			          " \nCOP in Effect: " << (int)clcw.cop_in_effect <<
+			          " \nVCID: " << (int)clcw.vcid <<
+			          " \nRSVD Spare: " << (int)clcw.rsvd_spare1 <<
+			          " \nNo RF Available FLAG:" << (int)clcw.rf_avail <<
+			          " \nNo Bit Lock FLAG: " << (int)clcw.bit_lock <<
+			          " \nLockout FLAG: " << (int)clcw.lockout <<
+			          " \nWait FLAG: " << (int)clcw.wait <<
+			          " \nRetransmit FLAG: " << (int)clcw.rt <<
+			          " \nFarm-B Counter: " << (int)clcw.farm_b_counter <<
+			          " \nRSVD Spare: " << (int)clcw.rsvd_spare2 <<
+			          " \nReport Value: " << (int)clcw.report_value << std::endl;
 		}
 	}
 }

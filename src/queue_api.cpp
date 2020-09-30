@@ -548,6 +548,7 @@ extern "C" {
 	int
 	osdlp_timer_start(uint16_t vcid)
 	{
+		std::cout << "VCID" << vcid  << ": Frame lost. Will retransmit..." << std::endl;
 		timer_start = true;
 		return 0;
 	}
