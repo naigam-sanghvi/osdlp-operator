@@ -19,11 +19,31 @@
 #include "qubik_fop_inst.h"
 extern "C" {
 #include "../lib/osdlp/include/osdlp.h"
-#include <ncurses.h>
 #include <unistd.h>
 }
 
-WINDOW *status;
+std::vector<unsigned long int> thread_handle;
+
+uint8_t tx_buf[28];
+
+void
+forward_frames(int sockfd, struct sockaddr_in servaddr)
+{
+	virtual_channel::sptr vc = get_vc_tc(1);
+	struct tc_transfer_frame *tr = &vc->get_tc_config();
+	uint8_t *pt;
+	int n, len;
+	while (1) {
+		if (vc->get_tx_queue().size() > 0) {
+			pt = &vc->get_tx_queue().front()[0];
+			memcpy(tx_buf, pt, vc->get_tc_config().primary_hdr.frame_len + 1);
+			sendto(sockfd, tx_buf, 28,
+			       MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
+			vc->get_tx_queue().pop_front();
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	}
+}
 
 qubik_fop_inst::qubik_fop_inst()
 {
@@ -34,41 +54,9 @@ qubik_fop_inst::~qubik_fop_inst()
 }
 
 void
-update_status(bool on)
-{
-	wclear(status);
-	if (on) {
-		wattron(status, COLOR_PAIR(2));
-		mvwprintw(status, 0, 0, "  CONNECTED  ");
-	} else {
-		wattron(status, COLOR_PAIR(1));
-		mvwprintw(status, 0, 0, "NOT_CONNECTED");
-	}
-	wrefresh(status);
-}
-
-void
 qubik_fop_inst::fop_transmitter()
 {
 	link_state_t st = NOT_CONNECTED;
-	WINDOW *local_win;
-
-	initscr();
-	start_color();
-	curs_set(0);
-	init_pair(1, COLOR_RED, COLOR_BLACK);
-	init_pair(2, COLOR_GREEN, COLOR_BLACK);
-	int height = LINES;
-	int width = COLS / 2 - 7;
-	int starty = 0;
-	int startx = 0;
-	local_win = newwin(height, width, starty, startx);
-	status = newwin(1, 14, 0, COLS / 2 - 7);
-	wattron(status, COLOR_PAIR(1));
-	mvwprintw(status, 0, 0, "NOT_CONNECTED");
-	box(local_win, 0, 0);
-	wrefresh(local_win);
-	wrefresh(status);
 
 	uint8_t tx_buffer[TC_MAX_FRAME_LEN];
 	int sockfd;
@@ -82,23 +70,26 @@ qubik_fop_inst::fop_transmitter()
 	servaddr.sin_port = htons(get_mission_params().out_port);
 	servaddr.sin_addr.s_addr = inet_addr(OUTPUT_ADDR);
 
+	std::thread tim(timer);
+	tim.detach();
+
+	std::thread t(forward_frames, sockfd, servaddr);
+	thread_handle.push_back(t.native_handle());
+	t.detach();
+	int input;
+
+	for (size_t i = 0; i < 28; i++)
+		tx_buf[i] = rand() % 256;
 	while (1) {
 		virtual_channel::sptr vc = get_vc_tc(1);
 		struct tc_transfer_frame *tr = &vc->get_tc_config();
-		if (st == NOT_CONNECTED) {
-			wclear(local_win);
-			mvwaddstr(local_win, 1, 1, "Choose initialization method: \n"
-			          " 0. Exit \n"
-			          " 1. Initialize with CLCW\n"
-			          " 2. Initialize no CLCW\n"
-			          " 3. Initialize with Set V(R)\n"
-			          " 4. Initialize with Unlock : ");
-			box(local_win, 0, 0);
-			wrefresh(local_win);
-		}
-		int input = 0;
-		wscanw(local_win, "%d", &input);
+		input = 0;
+		std::cin >> input;
+
 		switch (input) {
+			case 0:
+				pthread_cancel(thread_handle.front());
+				exit(0);
 			case 1:
 				osdlp_initiate_with_clcw(tr);
 				break;
@@ -112,27 +103,13 @@ qubik_fop_inst::fop_transmitter()
 				osdlp_initiate_with_unlock(tr);
 				break;
 		}
-		uint8_t *pt = &vc->get_tx_queue().front()[0];
-		int n, len;
-		sendto(sockfd, pt, vc->get_tc_config().primary_hdr.frame_len + 1,
-		       MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr));
 	}
-	endwin();
 }
 
 void
 qubik_fop_inst::fop_receiver()
 {
-	initscr();
 	struct clcw_frame clcw;
-	WINDOW *local_win;
-	int height = LINES;
-	int width = COLS / 2 - 7;
-	int starty = 0;
-	int startx = COLS / 2 + 7;
-	local_win = newwin(height, width, starty, startx);
-	box(local_win, 0, 0);
-	wrefresh(local_win);
 
 	int sockfd;
 	uint8_t rx_buffer[TM_FRAME_LEN];
@@ -168,34 +145,11 @@ qubik_fop_inst::fop_receiver()
 			struct tm_transfer_frame *tm = get_last_tm();
 			memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
 
-//			ocf[0] = tm->ocf[0];
-//			ocf[1] = tm->ocf[1];
-//			ocf[2] = tm->ocf[2];
-//			ocf[3] = tm->ocf[3];
+			ocf[0] = tm->ocf[0];
+			ocf[1] = tm->ocf[1];
+			ocf[2] = tm->ocf[2];
+			ocf[3] = tm->ocf[3];
 			osdlp_clcw_unpack(&clcw, ocf);
-			wprintw(local_win, " Control Word Type: %d\n"
-			        " CLCW Version Number : %d\n"
-			        " Status field: %d \n"
-			        " COP in Effect: %d\n"
-			        " VCID: %d\n"
-			        " RSVD Spare: %d\n"
-			        " No RF Available FLAG: %d\n"
-			        " No Bit Lock FLAG: %d\n"
-			        " Lockout FLAG: %d\n"
-			        " Wait FLAG: %d\n"
-			        " Retransmit FLAG: %d\n"
-			        " Farm-B Counter: %d\n"
-			        " RSVD Spare: %d\n"
-			        " Report Value: %d\n", clcw.ctrl_word_type,
-			        clcw.clcw_version_num, clcw.status_field,
-			        clcw.cop_in_effect, clcw.vcid, clcw.rsvd_spare1,
-			        clcw.rf_avail, clcw.bit_lock, clcw.lockout, clcw.wait,
-			        clcw.rt, clcw.farm_b_counter, clcw.rsvd_spare2,
-			        clcw.report_value);
-			box(local_win, 0, 0);
-
-			wrefresh(local_win);
-			update_status(1);
 
 			virtual_channel::sptr vc = get_vc_tc(clcw.vcid);
 			struct tc_transfer_frame tr = vc->get_tc_config();
@@ -205,15 +159,10 @@ qubik_fop_inst::fop_receiver()
 	}
 }
 
-int
-timer_start(uint16_t vcid)
-{
-	return 0;
-}
 
-int
-timer_cancel(uint16_t vcid)
-{
-	return 0;
-}
+
+
+
+
+
 

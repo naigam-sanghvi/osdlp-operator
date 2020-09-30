@@ -22,6 +22,10 @@
 #include "config.h"
 
 #include <deque>
+#include <thread>
+#include <chrono>
+#include <vector>
+#include <iostream>
 
 
 std::vector<virtual_channel::sptr> vc_tm_configs;
@@ -29,11 +33,20 @@ std::vector<virtual_channel::sptr> vc_tc_configs;
 struct mission_params m_params;
 uint8_t mc_count;
 
+std::vector<uint8_t> pkt;
+
+std::deque<unsigned long int> thread_vec;
+
+bool timer_start = false;
+bool timer_running = false;
+bool cancel_timer = false;
+
 uint8_t tc_util[TC_MAX_SDU_LEN];
 uint8_t tm_util[TM_MAX_SDU_LEN];
 
 struct tm_transfer_frame *last_tm;
 struct tc_transfer_frame *last_tc;
+
 
 struct tm_transfer_frame *
 get_last_tm()
@@ -96,8 +109,43 @@ get_vc_tc(uint16_t id)
 	return NULL;
 }
 
-extern "C" {
+void
+timer()
+{
+	std::chrono::steady_clock::time_point begin, end;
+	virtual_channel::sptr vc = get_vc_tc(1);
+	struct tc_transfer_frame tr = vc->get_tc_config();
+	while (1) {
+		if (timer_running) {
+			if (timer_start) {
+				begin = std::chrono::steady_clock::now();
+				timer_start = false;
+			}
+			if (cancel_timer) {
+				timer_running = false;
+				cancel_timer = false;
+			} else {
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+				end = std::chrono::steady_clock::now();
+				if (std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() >=
+				    tr.cop_cfg.fop.t1_init) {
+					timer_running = false;
+					vc = get_vc_tc(1);
+					tr = vc->get_tc_config();
+					osdlp_handle_timer_expired(&tr);
+				}
+			}
+		} else if (timer_start) {
+			begin = std::chrono::steady_clock::now();
+			timer_running = true;
+			timer_start = false;
+		} else {
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		}
+	}
+}
 
+extern "C" {
 
 	int
 	osdlp_tc_wait_queue_enqueue(void *tc_tf, uint16_t vcid)
@@ -277,35 +325,14 @@ extern "C" {
 		if (!vc)
 			return -1;
 		uint16_t length = (((buffer[2] & 0x03) << 8) | buffer[3]) + 1;
-		std::vector<uint8_t> pkt;
-		pkt.insert(pkt.end(), buffer, &buffer[length]);
+		pkt.resize(length);
+		pkt.insert(pkt.begin(), buffer, &buffer[length]);
 		int ret = 0;
 		if (vc->get_tx_queue().size() < m_params.tc_tx_queue_max_cap) {
 			vc->get_tx_queue().push_back(pkt);
 			ret = 0;
 		} else {
 			ret = -1;
-		}
-		if ((buffer[0] >> 5) & 0x01) {   // Type B
-			if ((buffer[0] >> 4) & 0x01) { // Control
-				if (ret < 0) {
-					osdlp_bc_reject(&vc->get_tc_config());
-				} else {
-					osdlp_bc_accept(&vc->get_tc_config());
-				}
-			} else {						// Data
-				if (ret < 0) {
-					osdlp_bd_reject(&vc->get_tc_config());
-				} else {
-					osdlp_bd_accept(&vc->get_tc_config());
-				}
-			}
-		} else { // Type A
-			if (ret < 0) {
-				osdlp_ad_reject(&vc->get_tc_config());
-			} else {
-				osdlp_ad_accept(&vc->get_tc_config());
-			}
 		}
 		return ret;
 	}
@@ -517,15 +544,18 @@ extern "C" {
 		last_tm = &vc->get_tm_config();
 		return 0;
 	}
+
 	int
 	osdlp_timer_start(uint16_t vcid)
 	{
+		timer_start = true;
 		return 0;
 	}
 
 	int
 	osdlp_timer_cancel(uint16_t vcid)
 	{
+		cancel_timer = true;
 		return 0;
 	}
 }

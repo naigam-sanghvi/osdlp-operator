@@ -30,8 +30,11 @@
 
 extern "C" {
 #include "../lib/osdlp/include/osdlp.h"
+
 }
 
+void
+timer();
 std::vector<virtual_channel::sptr> &
 get_tc_configs();
 
@@ -55,5 +58,7 @@ get_vc_tc(uint16_t id);
 
 virtual_channel::sptr
 get_vc_tm(uint16_t id);
+
+
 
 #endif /* INCLUDE_QUEUE_API_H_ */
