@@ -27,13 +27,13 @@
 #include <vector>
 #include <iostream>
 
-
 std::vector<virtual_channel::sptr> vc_tm_configs;
 std::vector<virtual_channel::sptr> vc_tc_configs;
 struct mission_params m_params;
 uint8_t mc_count;
 
-std::vector<uint8_t> pkt;
+std::vector<uint8_t>
+pkt(TC_MAX_FRAME_LEN, 0);
 
 std::deque<unsigned long int> thread_vec;
 
@@ -325,8 +325,7 @@ extern "C" {
 		if (!vc)
 			return -1;
 		uint16_t length = (((buffer[2] & 0x03) << 8) | buffer[3]) + 1;
-		pkt.resize(length);
-		pkt.insert(pkt.begin(), buffer, &buffer[length]);
+		pkt.assign(buffer, buffer + length);
 		int ret = 0;
 		if (vc->get_tx_queue().size() < m_params.tc_tx_queue_max_cap) {
 			vc->get_tx_queue().push_back(pkt);
