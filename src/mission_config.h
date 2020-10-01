@@ -29,7 +29,7 @@
 #define TC_MAX_SDU_LEN 1024
 #define TC_MAX_FRAME_LEN 128
 #define TM_MAX_SDU_LEN 1024
-#define TM_FRAME_LEN 128
+#define TM_FRAME_LEN 124
 #define MAX_TM_VCS 8
 
 #define __cplusplus 201703L

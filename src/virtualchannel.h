@@ -38,7 +38,7 @@ public:
 		uint16_t mapid;
 		tc_bypass_t bypass;
 		tc_ctrl_t ctrl;
-		uint8_t *data;
+		std::vector<uint8_t> data;
 	};
 
 	static sptr
@@ -63,27 +63,28 @@ public:
 	get_vcid();
 
 	void
-	add_map(uint16_t mapid, tc_bypass_t bp, tc_ctrl_t ctrl, uint8_t *data);
+	add_map(uint16_t mapid, tc_bypass_t bp, tc_ctrl_t ctrl,
+	        std::vector<uint8_t> data);
 
-	struct tm_transfer_frame &
+	struct tm_transfer_frame *
 	get_tm_config();
 
-	struct tc_transfer_frame &
+	struct tc_transfer_frame *
 	get_tc_config();
 
-	std::vector<struct map> &
+	std::vector<struct map> *
 	get_maps();
 
-	std::deque<struct local_queue_item> &
+	std::deque<struct local_queue_item> *
 	get_sent_queue();
 
-	std::deque<std::vector<uint8_t>> &
+	std::deque<std::vector<uint8_t>> *
 	                              get_rx_queue();
 
-	std::deque<std::vector<uint8_t>> &
+	std::deque<std::vector<uint8_t>> *
 	                              get_tx_queue();
 
-	std::vector<struct tc_transfer_frame> &
+	std::vector<struct tc_transfer_frame> *
 	get_wait_queue();
 
 protected:

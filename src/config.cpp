@@ -377,7 +377,35 @@ load_config(const std::string path,
 				} else {
 					ctrl = (tc_ctrl_t) 0;
 				}
-				vc_tc->add_map((uint16_t) mapid, bp, ctrl, NULL);
+				std::vector<uint8_t> data;
+				std::string data_in;
+				if (mp.exists("data")) {
+					mp.lookupValue("data", data_in);
+				} else {
+					data_in = "";
+				}
+				std::string token;
+				std::istringstream tokenStream(data_in);
+				std::stringstream ss;
+				int val_in;
+				uint8_t val;
+				while (std::getline(tokenStream, token, 'x')) {
+					if (token == "")
+						continue;
+					val_in = std::stoi(token, 0, 16);
+					if (val_in < 0 || val_in > 255) {
+						std::cerr << "Invalid data in MAP " << mapid <<
+						          " VCID " << tc_vcid << " . Ignoring ... " <<
+						          std::endl;
+						data.clear();
+						break;
+					} else {
+						val = (uint8_t) val_in;
+						data.push_back(val);
+						std::cout << (int)val << std::endl;
+					}
+				}
+				vc_tc->add_map((uint16_t) mapid, bp, ctrl, data);
 			}
 			vc_tc_configs->push_back(vc_tc);
 		}

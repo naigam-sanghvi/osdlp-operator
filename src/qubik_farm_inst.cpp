@@ -68,7 +68,7 @@ qubik_farm_inst::farm_receiver()
 
 	int n;
 	uint8_t vcid;
-	struct tm_transfer_frame tm;
+	struct tm_transfer_frame *tm;
 	struct tc_transfer_frame *tc;
 	len = sizeof(servaddr);
 	int ret;
@@ -79,10 +79,10 @@ qubik_farm_inst::farm_receiver()
 		ret = osdlp_tc_receive(rx_buffer, TC_MAX_FRAME_LEN);
 		tc = get_last_tc();
 		tm = get_vc_tm(tc->primary_hdr.vcid)->get_tm_config();
-		osdlp_prepare_clcw(tc, tm.ocf);
+		osdlp_prepare_clcw(tc, tm->ocf);
 
-		osdlp_tm_transmit_idle_fdu(&tm, tc->mission.clcw.vcid);
-		sendto(sockfd, tm.mission.util.buffer, TM_FRAME_LEN,
+		osdlp_tm_transmit_idle_fdu(tm, tc->mission.clcw.vcid);
+		sendto(sockfd, tm->mission.util.buffer, TM_FRAME_LEN,
 		       MSG_CONFIRM, (const struct sockaddr *) &cliaddr, sizeof(cliaddr));
 	}
 }

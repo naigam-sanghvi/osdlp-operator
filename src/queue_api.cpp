@@ -48,6 +48,17 @@ struct tm_transfer_frame *last_tm;
 struct tc_transfer_frame *last_tc;
 
 
+std::timed_mutex mtx;
+
+std::unique_lock<std::timed_mutex>
+lock(mtx, std::defer_lock);
+
+std::unique_lock<std::timed_mutex> *
+get_lock()
+{
+	return &lock;
+}
+
 struct tm_transfer_frame *
 get_last_tm()
 {
@@ -66,16 +77,16 @@ get_mission_params()
 	return m_params;
 }
 
-std::vector<virtual_channel::sptr> &
+std::vector<virtual_channel::sptr> *
 get_tc_configs()
 {
-	return vc_tc_configs;
+	return &vc_tc_configs;
 }
 
-std::vector<virtual_channel::sptr> &
+std::vector<virtual_channel::sptr> *
 get_tm_configs()
 {
-	return vc_tm_configs;
+	return &vc_tm_configs;
 }
 
 int
@@ -114,8 +125,9 @@ timer()
 {
 	std::chrono::steady_clock::time_point begin, end;
 	virtual_channel::sptr vc = get_vc_tc(1);
-	struct tc_transfer_frame tr = vc->get_tc_config();
+	struct tc_transfer_frame *tr = vc->get_tc_config();
 	while (1) {
+		tr = vc->get_tc_config();
 		if (timer_running) {
 			if (timer_start) {
 				begin = std::chrono::steady_clock::now();
@@ -127,13 +139,18 @@ timer()
 			} else {
 				std::this_thread::sleep_for(std::chrono::milliseconds(500));
 				end = std::chrono::steady_clock::now();
-				if (std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() >=
-				    tr.cop_cfg.fop.t1_init) {
-					timer_running = false;
-					vc = get_vc_tc(1);
-					tr = vc->get_tc_config();
-					osdlp_handle_timer_expired(&tr);
+				if (!lock.try_lock_for(std::chrono::milliseconds(500))) {
+					continue;
 				}
+				if (std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() >=
+				    tr->cop_cfg.fop.t1_init) {
+					timer_running = false;
+					osdlp_handle_timer_expired(tr);
+					if (tr->cop_cfg.fop.signal >= 5 && tr->cop_cfg.fop.signal <= 12) {
+						std::cout << "Alert! " << std::endl;
+					}
+				}
+				lock.unlock();
 			}
 		} else if (timer_start) {
 			begin = std::chrono::steady_clock::now();
@@ -153,7 +170,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		vc->get_wait_queue().push_back(vc->get_tc_config());
+		vc->get_wait_queue()->push_back(*vc->get_tc_config());
 		return 0;
 	}
 
@@ -163,8 +180,9 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		vc->get_wait_queue().pop_back();
-		tc_tf = (struct tc_transfer_frame *)&vc->get_tc_config();
+		memcpy((struct tc_transfer_frame *)tc_tf, &vc->get_wait_queue()->back(),
+		       sizeof(struct tc_transfer_frame));
+		vc->get_wait_queue()->pop_back();
 		return 0;
 	}
 
@@ -174,7 +192,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
-		if (vc->get_wait_queue().size() == 0) {
+		if (vc->get_wait_queue()->size() == 0) {
 			return true;
 		} else {
 			return false;
@@ -187,7 +205,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		vc->get_wait_queue().clear();
+		vc->get_wait_queue()->clear();
 		return 0;
 	}
 
@@ -197,7 +215,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		vc->get_sent_queue().clear();
+		vc->get_sent_queue()->clear();
 
 		return 0;
 	}
@@ -208,7 +226,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		return vc->get_sent_queue().size();
+		return vc->get_sent_queue()->size();
 	}
 
 	int
@@ -218,7 +236,7 @@ extern "C" {
 		if (!vc)
 			return -1;
 		struct local_queue_item new_item;
-		vc->get_sent_queue().pop_front();
+		vc->get_sent_queue()->pop_front();
 		return 0;
 	}
 
@@ -234,7 +252,7 @@ extern "C" {
 		new_item.rt_flag = qi->rt_flag;
 		new_item.seq_num = qi->seq_num;
 		new_item.type = qi->type;
-		vc->get_sent_queue().push_back(new_item);
+		vc->get_sent_queue()->push_back(new_item);
 		return 0;
 	}
 
@@ -244,7 +262,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
-		if (vc->get_sent_queue().size() == 0) {
+		if (vc->get_sent_queue()->size() == 0) {
 			return true;
 		} else {
 			return false;
@@ -257,7 +275,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
-		if (vc->get_sent_queue().size() == m_params.tc_sent_queue_max_cap) {
+		if (vc->get_sent_queue()->size() == m_params.tc_sent_queue_max_cap) {
 			return true;
 		} else {
 			return false;
@@ -271,8 +289,8 @@ extern "C" {
 		if (!vc)
 			return -1;
 		struct local_queue_item item;
-		if (vc->get_sent_queue().size() > 0) {
-			item = vc->get_sent_queue().front();
+		if (vc->get_sent_queue()->size() > 0) {
+			item = vc->get_sent_queue()->front();
 			qi->fdu = item.fdu; // TODO Check if this stands
 			qi->rt_flag = item.rt_flag;
 			qi->seq_num = item.seq_num;
@@ -290,7 +308,7 @@ extern "C" {
 		if (!vc)
 			return NULL;
 
-		return &vc->get_tc_config();
+		return vc->get_tc_config();
 	}
 
 	bool
@@ -299,7 +317,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return false;
-		if (vc->get_rx_queue().size() == m_params.tc_rx_queue_max_cap) {
+		if (vc->get_rx_queue()->size() == m_params.tc_rx_queue_max_cap) {
 			return true;
 		} else {
 			return false;
@@ -327,8 +345,8 @@ extern "C" {
 		uint16_t length = (((buffer[2] & 0x03) << 8) | buffer[3]) + 1;
 		pkt.assign(buffer, buffer + length);
 		int ret = 0;
-		if (vc->get_tx_queue().size() < m_params.tc_tx_queue_max_cap) {
-			vc->get_tx_queue().push_back(pkt);
+		if (vc->get_tx_queue()->size() < m_params.tc_tx_queue_max_cap) {
+			vc->get_tx_queue()->push_back(pkt);
 			ret = 0;
 		} else {
 			ret = -1;
@@ -342,10 +360,10 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		if (vc->get_rx_queue().size() < m_params.tc_rx_queue_max_cap) {
+		if (vc->get_rx_queue()->size() < m_params.tc_rx_queue_max_cap) {
 			std::vector<uint8_t> pkt;
 			pkt.insert(pkt.end(), buffer, &buffer[length]);
-			vc->get_rx_queue().push_back(pkt);
+			vc->get_rx_queue()->push_back(pkt);
 			return 0;
 		} else {
 			return -1;
@@ -358,16 +376,16 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		if (vc->get_rx_queue().size() < m_params.tc_rx_queue_max_cap) {
+		if (vc->get_rx_queue()->size() < m_params.tc_rx_queue_max_cap) {
 			std::vector<uint8_t> pkt;
 			pkt.insert(pkt.end(), buffer, &buffer[length]);
-			vc->get_rx_queue().push_back(pkt);
+			vc->get_rx_queue()->push_back(pkt);
 			return 0;
 		} else {
-			vc->get_rx_queue().pop_back();
+			vc->get_rx_queue()->pop_back();
 			std::vector<uint8_t> pkt;
 			pkt.insert(pkt.end(), buffer, &buffer[length]);
-			vc->get_rx_queue().push_back(pkt);
+			vc->get_rx_queue()->push_back(pkt);
 			return 0;
 		}
 	}
@@ -378,8 +396,8 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		*tf = &vc->get_tc_config();
-		last_tc = &vc->get_tc_config();
+		*tf = vc->get_tc_config();
+		last_tc = vc->get_tc_config();
 		return 0;
 	}
 
@@ -387,7 +405,7 @@ extern "C" {
 	osdlp_cancel_lower_ops()
 	{
 		for (virtual_channel::sptr vc : vc_tc_configs) {
-			vc->get_tx_queue().clear();
+			vc->get_tx_queue()->clear();
 		}
 		return 0;
 	}
@@ -398,9 +416,9 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		for (int i = 0; i < vc->get_sent_queue().size() ; i++) {
-			if (vc->get_sent_queue()[i].type == TYPE_A) {
-				vc->get_sent_queue()[i].rt_flag = RT_FLAG_ON;
+		for (int i = 0; i < vc->get_sent_queue()->size() ; i++) {
+			if ((*vc->get_sent_queue())[i].type == TYPE_A) {
+				(*vc->get_sent_queue())[i].rt_flag = RT_FLAG_ON;
 			}
 		}
 		return 0;
@@ -412,13 +430,13 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		for (int i = 0; i < vc->get_sent_queue().size() ; i++) {
-			if (vc->get_sent_queue()[i].type == TYPE_A &&
-			    vc->get_sent_queue()[i].rt_flag == RT_FLAG_ON) {
-				qi->fdu = vc->get_sent_queue()[i].fdu;
-				qi->rt_flag = vc->get_sent_queue()[i].rt_flag;
-				qi->seq_num = vc->get_sent_queue()[i].seq_num;
-				qi->type = vc->get_sent_queue()[i].type;
+		for (int i = 0; i < vc->get_sent_queue()->size() ; i++) {
+			if ((*vc->get_sent_queue())[i].type == TYPE_A &&
+			    (*vc->get_sent_queue())[i].rt_flag == RT_FLAG_ON) {
+				qi->fdu = (*vc->get_sent_queue())[i].fdu;
+				qi->rt_flag = (*vc->get_sent_queue())[i].rt_flag;
+				qi->seq_num = (*vc->get_sent_queue())[i].seq_num;
+				qi->type = (*vc->get_sent_queue())[i].type;
 				return 0;
 			}
 		}
@@ -431,9 +449,9 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		for (int i = 0; i < vc->get_sent_queue().size() ; i++) {
-			if (vc->get_sent_queue()[i].seq_num == qi->seq_num) {
-				vc->get_sent_queue()[i].rt_flag = RT_FLAG_OFF;
+		for (int i = 0; i < vc->get_sent_queue()->size() ; i++) {
+			if ((*vc->get_sent_queue())[i].seq_num == qi->seq_num) {
+				(*vc->get_sent_queue())[i].rt_flag = RT_FLAG_OFF;
 				return 0;
 			}
 		}
@@ -446,8 +464,8 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		if (vc->get_sent_queue().front().type == TYPE_B) {
-			vc->get_sent_queue().front().rt_flag = RT_FLAG_ON;
+		if (vc->get_sent_queue()->front().type == TYPE_B) {
+			vc->get_sent_queue()->front().rt_flag = RT_FLAG_ON;
 		}
 		return 0;
 	}
@@ -458,7 +476,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		vc->get_rx_queue().clear();
+		vc->get_rx_queue()->clear();
 		return 0;
 	}
 
@@ -468,7 +486,7 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
-		if (vc->get_tx_queue().size() == 0) {
+		if (vc->get_tx_queue()->size() == 0) {
 			return true;
 		} else {
 			return false;
@@ -481,10 +499,10 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
-		if (vc->get_tx_queue().size() == 0) {
+		if (vc->get_tx_queue()->size() == 0) {
 			return -1;
 		}
-		*pkt = vc->get_tx_queue().back().data();
+		*pkt = vc->get_tx_queue()->back().data();
 		return 0;
 	}
 
@@ -496,7 +514,7 @@ extern "C" {
 			return -1;
 		std::vector<uint8_t> vec;
 		vec.insert(vec.end(), pkt, &pkt[m_params.tm_frame_len]);
-		vc->get_tx_queue().push_back(vec);
+		vc->get_tx_queue()->push_back(vec);
 		return 0;
 	}
 
@@ -508,7 +526,7 @@ extern "C" {
 			return -1;
 		std::vector<uint8_t> vec;
 		vec.insert(vec.end(), pkt, &pkt[m_params.tm_frame_len]);
-		vc->get_rx_queue().push_back(vec);
+		vc->get_rx_queue()->push_back(vec);
 		return 0;
 	}
 
@@ -516,8 +534,8 @@ extern "C" {
 	osdlp_tm_get_packet_len(uint16_t *length, uint8_t *pkt, uint16_t mem_len)
 	{
 		if (mem_len >= 5) {
-			if (((pkt[3] << 8) | pkt[4]) <= m_params.tm_frame_len) {
-				*length = ((pkt[3] << 8) | pkt[4]);
+			if (((pkt[1] << 8) | pkt[0]) <= m_params.tm_frame_len) {
+				*length = ((pkt[1] << 8) | pkt[0]);
 				return 0;
 			} else {
 				return -1;
@@ -539,15 +557,15 @@ extern "C" {
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
 			return -1;
-		*tm = &vc->get_tm_config();
-		last_tm = &vc->get_tm_config();
+		*tm = vc->get_tm_config();
+		last_tm = vc->get_tm_config();
 		return 0;
 	}
 
 	int
 	osdlp_timer_start(uint16_t vcid)
 	{
-		std::cout << "VCID" << vcid  << ": Frame lost. Will retransmit..." << std::endl;
+		std::cout << "VCID" << vcid  << ": Timer Start" << std::endl;
 		timer_start = true;
 		return 0;
 	}
@@ -555,6 +573,7 @@ extern "C" {
 	int
 	osdlp_timer_cancel(uint16_t vcid)
 	{
+		std::cout << "VCID" << vcid  << ": Timer Canceled" << std::endl;
 		cancel_timer = true;
 		return 0;
 	}

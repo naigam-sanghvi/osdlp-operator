@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <string>
+#include <mutex>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -35,10 +36,10 @@ extern "C" {
 
 void
 timer();
-std::vector<virtual_channel::sptr> &
+std::vector<virtual_channel::sptr> *
 get_tc_configs();
 
-std::vector<virtual_channel::sptr> &
+std::vector<virtual_channel::sptr> *
 get_tm_configs();
 
 struct mission_params
@@ -59,6 +60,8 @@ get_vc_tc(uint16_t id);
 virtual_channel::sptr
 get_vc_tm(uint16_t id);
 
+std::unique_lock<std::timed_mutex> *
+get_lock();
 
 
 #endif /* INCLUDE_QUEUE_API_H_ */

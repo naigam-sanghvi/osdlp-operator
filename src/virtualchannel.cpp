@@ -76,7 +76,7 @@ virtual_channel::~virtual_channel()
 
 void
 virtual_channel::add_map(uint16_t mapid, tc_bypass_t bp, tc_ctrl_t ctrl,
-                         uint8_t *data)
+                         std::vector<uint8_t> data)
 {
 	struct map m;
 	m.mapid = mapid;
@@ -93,45 +93,45 @@ virtual_channel::get_vcid()
 	return d_vcid;
 }
 
-struct tm_transfer_frame &
+struct tm_transfer_frame *
 virtual_channel::get_tm_config()
 {
-	return d_tm_config;
+	return &d_tm_config;
 }
 
-struct tc_transfer_frame &
+struct tc_transfer_frame *
 virtual_channel::get_tc_config()
 {
-	return d_tc_config;
+	return &d_tc_config;
 }
 
-std::vector<virtual_channel::map> &
+std::vector<virtual_channel::map> *
 virtual_channel::get_maps()
 {
-	return d_mapids;
+	return &d_mapids;
 }
 
-std::deque<struct local_queue_item> &
+std::deque<struct local_queue_item> *
 virtual_channel::get_sent_queue()
 {
-	return d_sent_queue;
+	return &d_sent_queue;
 }
 
-std::deque<std::vector<uint8_t>> &
+std::deque<std::vector<uint8_t>> *
                               virtual_channel::get_rx_queue()
 {
-	return d_rx_queue;
+	return &d_rx_queue;
 }
 
-std::deque<std::vector<uint8_t>> &
+std::deque<std::vector<uint8_t>> *
                               virtual_channel::get_tx_queue()
 {
-	return d_tx_queue;
+	return &d_tx_queue;
 }
 
-std::vector<struct tc_transfer_frame> &
+std::vector<struct tc_transfer_frame> *
 virtual_channel::get_wait_queue()
 {
-	return d_wait_queue;
+	return &d_wait_queue;
 }
 
