@@ -10,6 +10,8 @@
 
 #define VCID 1
 
+#include "logger.h"
+
 class qubik_fop_inst
 {
 public:
@@ -26,6 +28,14 @@ public:
 		NOT_CONNECTED = 0,
 		CONNECTED = 1
 	} link_state_t;
+
+	logger::sptr
+	get_logger();
+
+private:
+	static void
+	forward_frames(int sockfd, struct sockaddr_in servaddr);
+
 };
 
 

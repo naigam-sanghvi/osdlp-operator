@@ -25,6 +25,7 @@
 #include <thread>
 #include <chrono>
 #include <vector>
+#include <map>
 #include <iostream>
 
 std::vector<virtual_channel::sptr> vc_tm_configs;
@@ -37,16 +38,15 @@ pkt(TC_MAX_FRAME_LEN, 0);
 
 std::deque<unsigned long int> thread_vec;
 
-bool timer_start = false;
-bool timer_running = false;
-bool cancel_timer = false;
+std::map<uint16_t, bool> timer_start;
+std::map<uint16_t, bool> timer_running;
+std::map<uint16_t, bool> cancel_timer;
 
 uint8_t tc_util[TC_MAX_SDU_LEN];
 uint8_t tm_util[TM_MAX_SDU_LEN];
 
 struct tm_transfer_frame *last_tm;
 struct tc_transfer_frame *last_tc;
-
 
 std::timed_mutex mtx;
 
@@ -71,8 +71,7 @@ get_last_tc()
 	return last_tc;
 }
 
-struct mission_params
-get_mission_params()
+struct mission_params get_mission_params()
 {
 	return m_params;
 }
@@ -92,9 +91,8 @@ get_tm_configs()
 int
 init_structs(std::string path)
 {
-	load_config(path, &vc_tm_configs,
-	            &vc_tc_configs, &m_params,
-	            &mc_count, tc_util, tm_util);
+	load_config(path, &vc_tm_configs, &vc_tc_configs, &m_params, &mc_count,
+	            tc_util, tm_util);
 	return 0;
 }
 
@@ -121,41 +119,44 @@ get_vc_tc(uint16_t id)
 }
 
 void
-timer()
+timer(uint16_t vcid)
 {
 	std::chrono::steady_clock::time_point begin, end;
-	virtual_channel::sptr vc = get_vc_tc(1);
-	struct tc_transfer_frame *tr = vc->get_tc_config();
+	virtual_channel::sptr vc;
+	struct tc_transfer_frame *tr;
 	while (1) {
-		tr = vc->get_tc_config();
-		if (timer_running) {
-			if (timer_start) {
+		if (timer_running[vcid]) {
+			if (timer_start[vcid]) {
 				begin = std::chrono::steady_clock::now();
-				timer_start = false;
+				timer_start[vcid] = false;
 			}
-			if (cancel_timer) {
-				timer_running = false;
-				cancel_timer = false;
+			if (cancel_timer[vcid]) {
+				timer_running[vcid] = false;
+				cancel_timer[vcid] = false;
 			} else {
+				vc = get_vc_tc(vcid);
+				tr = vc->get_tc_config();
 				std::this_thread::sleep_for(std::chrono::milliseconds(500));
 				end = std::chrono::steady_clock::now();
-				if (!lock.try_lock_for(std::chrono::milliseconds(500))) {
-					continue;
-				}
-				if (std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() >=
-				    tr->cop_cfg.fop.t1_init) {
-					timer_running = false;
+				if (std::chrono::duration_cast<std::chrono::seconds>(
+				            end - begin).count() >= tr->cop_cfg.fop.t1_init) {
+					if (!lock.try_lock_for(std::chrono::milliseconds(2000))) {
+						continue;
+					}
+					timer_running[vcid] = false;
 					osdlp_handle_timer_expired(tr);
-					if (tr->cop_cfg.fop.signal >= 5 && tr->cop_cfg.fop.signal <= 12) {
+					if (tr->cop_cfg.fop.signal >= 5
+					    && tr->cop_cfg.fop.signal <= 12) {
 						std::cout << "Alert! " << std::endl;
 					}
+					lock.unlock();
 				}
-				lock.unlock();
+
 			}
-		} else if (timer_start) {
+		} else if (timer_start[vcid]) {
 			begin = std::chrono::steady_clock::now();
-			timer_running = true;
-			timer_start = false;
+			timer_running[vcid] = true;
+			timer_start[vcid] = false;
 		} else {
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		}
@@ -164,8 +165,7 @@ timer()
 
 extern "C" {
 
-	int
-	osdlp_tc_wait_queue_enqueue(void *tc_tf, uint16_t vcid)
+	int osdlp_tc_wait_queue_enqueue(void *tc_tf, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -174,20 +174,18 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_tc_wait_queue_dequeue(void *tc_tf, uint16_t vcid)
+	int osdlp_tc_wait_queue_dequeue(void *tc_tf, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		memcpy((struct tc_transfer_frame *)tc_tf, &vc->get_wait_queue()->back(),
+		memcpy((struct tc_transfer_frame *) tc_tf, &vc->get_wait_queue()->back(),
 		       sizeof(struct tc_transfer_frame));
 		vc->get_wait_queue()->pop_back();
 		return 0;
 	}
 
-	bool
-	osdlp_tc_wait_queue_empty(uint16_t vcid)
+	bool osdlp_tc_wait_queue_empty(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -199,8 +197,7 @@ extern "C" {
 		}
 	}
 
-	int
-	osdlp_tc_wait_queue_clear(uint16_t vcid)
+	int osdlp_tc_wait_queue_clear(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -209,8 +206,7 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_tc_sent_queue_clear(uint16_t vcid)
+	int osdlp_tc_sent_queue_clear(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -220,8 +216,7 @@ extern "C" {
 		return 0;
 	}
 
-	uint16_t
-	osdlp_tc_sent_queue_size(uint16_t vcid)
+	uint16_t osdlp_tc_sent_queue_size(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -229,8 +224,7 @@ extern "C" {
 		return vc->get_sent_queue()->size();
 	}
 
-	int
-	osdlp_tc_sent_queue_dequeue(struct queue_item *qi, uint16_t vcid)
+	int osdlp_tc_sent_queue_dequeue(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -240,8 +234,7 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_tc_sent_queue_enqueue(struct queue_item *qi, uint16_t vcid)
+	int osdlp_tc_sent_queue_enqueue(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -256,8 +249,7 @@ extern "C" {
 		return 0;
 	}
 
-	bool
-	osdlp_tc_sent_queue_empty(uint16_t vcid)
+	bool osdlp_tc_sent_queue_empty(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -269,8 +261,7 @@ extern "C" {
 		}
 	}
 
-	bool
-	osdlp_tc_sent_queue_full(uint16_t vcid)
+	bool osdlp_tc_sent_queue_full(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -282,8 +273,7 @@ extern "C" {
 		}
 	}
 
-	int
-	osdlp_tc_sent_queue_head(struct queue_item *qi, uint16_t vcid)
+	int osdlp_tc_sent_queue_head(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -311,8 +301,7 @@ extern "C" {
 		return vc->get_tc_config();
 	}
 
-	bool
-	osdlp_tc_rx_queue_full(uint16_t vcid)
+	bool osdlp_tc_rx_queue_full(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -324,8 +313,7 @@ extern "C" {
 		}
 	}
 
-	bool
-	osdlp_tc_tx_queue_full()
+	bool osdlp_tc_tx_queue_full()
 	{
 		return false;
 //	if(vc->get_tx_queue().size() == TC_TX_QUEUE_MAX_CAP){
@@ -336,8 +324,7 @@ extern "C" {
 //	}
 	}
 
-	int
-	osdlp_tc_tx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
+	int osdlp_tc_tx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -354,8 +341,7 @@ extern "C" {
 		return ret;
 	}
 
-	int
-	osdlp_tc_rx_queue_enqueue(uint8_t *buffer, uint32_t length, uint16_t vcid)
+	int osdlp_tc_rx_queue_enqueue(uint8_t *buffer, uint32_t length, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -370,8 +356,8 @@ extern "C" {
 		}
 	}
 
-	int
-	osdlp_tc_rx_queue_enqueue_now(uint8_t *buffer, uint32_t length, uint8_t vcid)
+	int osdlp_tc_rx_queue_enqueue_now(uint8_t *buffer, uint32_t length,
+	                                  uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -390,8 +376,7 @@ extern "C" {
 		}
 	}
 
-	int
-	osdlp_tc_get_rx_config(struct tc_transfer_frame **tf, uint16_t vcid)
+	int osdlp_tc_get_rx_config(struct tc_transfer_frame **tf, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -401,8 +386,7 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_cancel_lower_ops()
+	int osdlp_cancel_lower_ops()
 	{
 		for (virtual_channel::sptr vc : vc_tc_configs) {
 			vc->get_tx_queue()->clear();
@@ -410,13 +394,12 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_mark_ad_as_rt(uint16_t vcid)
+	int osdlp_mark_ad_as_rt(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		for (int i = 0; i < vc->get_sent_queue()->size() ; i++) {
+		for (int i = 0; i < vc->get_sent_queue()->size(); i++) {
 			if ((*vc->get_sent_queue())[i].type == TYPE_A) {
 				(*vc->get_sent_queue())[i].rt_flag = RT_FLAG_ON;
 			}
@@ -424,15 +407,14 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_get_first_ad_rt_frame(struct queue_item *qi, uint16_t vcid)
+	int osdlp_get_first_ad_rt_frame(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		for (int i = 0; i < vc->get_sent_queue()->size() ; i++) {
-			if ((*vc->get_sent_queue())[i].type == TYPE_A &&
-			    (*vc->get_sent_queue())[i].rt_flag == RT_FLAG_ON) {
+		for (int i = 0; i < vc->get_sent_queue()->size(); i++) {
+			if ((*vc->get_sent_queue())[i].type == TYPE_A
+			    && (*vc->get_sent_queue())[i].rt_flag == RT_FLAG_ON) {
 				qi->fdu = (*vc->get_sent_queue())[i].fdu;
 				qi->rt_flag = (*vc->get_sent_queue())[i].rt_flag;
 				qi->seq_num = (*vc->get_sent_queue())[i].seq_num;
@@ -443,13 +425,12 @@ extern "C" {
 		return -1;
 	}
 
-	int
-	osdlp_reset_rt_frame(struct queue_item *qi, uint16_t vcid)
+	int osdlp_reset_rt_frame(struct queue_item *qi, uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		for (int i = 0; i < vc->get_sent_queue()->size() ; i++) {
+		for (int i = 0; i < vc->get_sent_queue()->size(); i++) {
 			if ((*vc->get_sent_queue())[i].seq_num == qi->seq_num) {
 				(*vc->get_sent_queue())[i].rt_flag = RT_FLAG_OFF;
 				return 0;
@@ -458,8 +439,7 @@ extern "C" {
 		return -1;
 	}
 
-	int
-	osdlp_mark_bc_as_rt(uint16_t vcid)
+	int osdlp_mark_bc_as_rt(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -470,8 +450,7 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_tc_rx_queue_clear(uint16_t vcid)
+	int osdlp_tc_rx_queue_clear(uint16_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
@@ -480,8 +459,7 @@ extern "C" {
 		return 0;
 	}
 
-	bool
-	osdlp_tm_tx_queue_empty(uint8_t vcid)
+	bool osdlp_tm_tx_queue_empty(uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -493,8 +471,7 @@ extern "C" {
 		}
 	}
 
-	int
-	osdlp_tm_tx_queue_back(uint8_t **pkt, uint8_t vcid)
+	int osdlp_tm_tx_queue_back(uint8_t **pkt, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -506,8 +483,7 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_tm_tx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
+	int osdlp_tm_tx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -518,8 +494,7 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_tm_rx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
+	int osdlp_tm_rx_queue_enqueue(uint8_t *pkt, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -530,8 +505,7 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_tm_get_packet_len(uint16_t *length, uint8_t *pkt, uint16_t mem_len)
+	int osdlp_tm_get_packet_len(uint16_t *length, uint8_t *pkt, uint16_t mem_len)
 	{
 		if (mem_len >= 5) {
 			if (((pkt[1] << 8) | pkt[0]) <= m_params.tm_frame_len) {
@@ -545,14 +519,12 @@ extern "C" {
 		}
 	}
 
-	void
-	osdlp_tm_tx_commit_back(uint8_t vcid)
+	void osdlp_tm_tx_commit_back(uint8_t vcid)
 	{
 		return;
 	}
 
-	int
-	osdlp_tm_get_rx_config(struct tm_transfer_frame **tm, uint8_t vcid)
+	int osdlp_tm_get_rx_config(struct tm_transfer_frame **tm, uint8_t vcid)
 	{
 		virtual_channel::sptr vc = get_vc_tm(vcid);
 		if (!vc)
@@ -562,19 +534,15 @@ extern "C" {
 		return 0;
 	}
 
-	int
-	osdlp_timer_start(uint16_t vcid)
+	int osdlp_timer_start(uint16_t vcid)
 	{
-		std::cout << "VCID" << vcid  << ": Timer Start" << std::endl;
-		timer_start = true;
+		timer_start[vcid] = true;
 		return 0;
 	}
 
-	int
-	osdlp_timer_cancel(uint16_t vcid)
+	int osdlp_timer_cancel(uint16_t vcid)
 	{
-		std::cout << "VCID" << vcid  << ": Timer Canceled" << std::endl;
-		cancel_timer = true;
+		cancel_timer[vcid] = true;
 		return 0;
 	}
 }

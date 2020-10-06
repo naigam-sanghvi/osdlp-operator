@@ -55,6 +55,7 @@ struct mission_params {
 	size_t tc_rx_queue_max_cap;
 	size_t in_port;
 	size_t out_port;
+	size_t sec_out_port;
 	std::string instance;
 };
 

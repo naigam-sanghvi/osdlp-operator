@@ -39,20 +39,21 @@ public:
 		tc_bypass_t bypass;
 		tc_ctrl_t ctrl;
 		std::vector<uint8_t> data;
+		std::string name;
 	};
 
 	static sptr
 	make_shared(struct tm_transfer_frame tm_transfer_frame,
 	            struct tc_transfer_frame tc_transfer_frame,
-	            uint16_t vcid);
+	            uint16_t vcid, std::string tm_name, std::string tc_name);
 
 	static sptr
 	make_shared(struct tm_transfer_frame tm_transfer_frame,
-	            uint16_t vcid);
+	            uint16_t vcid, std::string name);
 
 	static sptr
 	make_shared(struct tc_transfer_frame tc_transfer_frame,
-	            uint16_t vcid);
+	            uint16_t vcid, std::string name);
 
 
 	//virtual_channel() = delete;
@@ -62,9 +63,15 @@ public:
 	uint16_t
 	get_vcid();
 
+	std::string
+	get_tc_name();
+
+	std::string
+	get_tm_name();
+
 	void
 	add_map(uint16_t mapid, tc_bypass_t bp, tc_ctrl_t ctrl,
-	        std::vector<uint8_t> data);
+	        std::vector<uint8_t> data, std::string name);
 
 	struct tm_transfer_frame *
 	get_tm_config();
@@ -90,17 +97,19 @@ public:
 protected:
 	virtual_channel(struct tm_transfer_frame tm_transfer_frame,
 	                struct tc_transfer_frame tc_transfer_frame,
-	                uint16_t vcid);
+	                uint16_t vcid, std::string tm_name, std::string tc_name);
 
 	virtual_channel(struct tm_transfer_frame tm_transfer_frame,
-	                uint16_t vcid);
+	                uint16_t vcid, std::string name);
 
 	virtual_channel(struct tc_transfer_frame tc_transfer_frame,
-	                uint16_t vcid);
+	                uint16_t vcid, std::string name);
 private:
 	struct tm_transfer_frame d_tm_config;
 	struct tc_transfer_frame d_tc_config;
 	uint16_t d_vcid;
+	std::string d_tc_name;
+	std::string d_tm_name;
 	std::vector<struct map>d_mapids;
 	std::deque<struct local_queue_item> d_sent_queue;
 	std::deque<std::vector<uint8_t>> d_rx_queue;

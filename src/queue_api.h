@@ -35,7 +35,8 @@ extern "C" {
 }
 
 void
-timer();
+timer(uint16_t vcid);
+
 std::vector<virtual_channel::sptr> *
 get_tc_configs();
 

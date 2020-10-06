@@ -17,25 +17,39 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SRC_CONFIG_H_
-#define SRC_CONFIG_H_
+#ifndef SRC_LOGGER_H_
+#define SRC_LOGGER_H_
 
-#include <libconfig.h++>
-
-#include <vector>
-#include "virtualchannel.h"
 #include "mission_config.h"
+#include "queue_api.h"
 
-int
-load_config(const std::string path,
-            std::vector<virtual_channel::sptr> *vc_tm_configs,
-            std::vector<virtual_channel::sptr> *vc_tc_configs,
-            struct mission_params *m_params,
-            uint8_t *mc_count,
-            uint8_t *tc_util,
-            uint8_t *tm_util);
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
-int
-tokenize(std::string str, std::vector<uint8_t> *data_out);
+class logger
+{
+public:
+	typedef std::shared_ptr<logger> sptr;
+	static sptr
+	make_shared(uint16_t port);
 
-#endif /* SRC_CONFIG_H_ */
+	~logger();
+
+	void
+	log_output(std::string);
+
+protected:
+	logger(uint16_t port);
+
+private:
+	int d_sockfd;
+	struct sockaddr_in d_servaddr;
+	uint16_t d_port;
+};
+
+static void
+log_output(std::string out_str);
+
+#endif /* SRC_LOGGER_H_ */

@@ -5,6 +5,7 @@ set(SOURCE_FILES
     queue_api.cpp
     qubik_fop_inst.cpp
     qubik_farm_inst.cpp
+    logger.cpp
    )
 
 add_executable(osdlp-operator ${SOURCE_FILES})

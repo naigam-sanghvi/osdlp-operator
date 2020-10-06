@@ -16,26 +16,37 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "logger.h"
+#include <string.h>
 
-#ifndef SRC_CONFIG_H_
-#define SRC_CONFIG_H_
+logger::sptr
+logger::make_shared(uint16_t port)
+{
+	return std::shared_ptr<logger>(new logger(port));
+}
 
-#include <libconfig.h++>
+logger::logger(uint16_t port)
+{
+	d_port = port;
+	if ((d_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		perror("socket creation failed");
+		exit(EXIT_FAILURE);
+	}
+	memset(&d_servaddr, 0, sizeof(d_servaddr));
+	d_servaddr.sin_family = AF_INET;
+	d_servaddr.sin_port = htons(port);
+	d_servaddr.sin_addr.s_addr = inet_addr(OUTPUT_ADDR);
+}
 
-#include <vector>
-#include "virtualchannel.h"
-#include "mission_config.h"
+void
+logger::log_output(std::string out_str)
+{
+	sendto(d_sockfd, out_str.data(), out_str.size(),
+	       MSG_CONFIRM, (const struct sockaddr *) &d_servaddr, sizeof(d_servaddr));
+}
 
-int
-load_config(const std::string path,
-            std::vector<virtual_channel::sptr> *vc_tm_configs,
-            std::vector<virtual_channel::sptr> *vc_tc_configs,
-            struct mission_params *m_params,
-            uint8_t *mc_count,
-            uint8_t *tc_util,
-            uint8_t *tm_util);
+logger::~logger()
+{
 
-int
-tokenize(std::string str, std::vector<uint8_t> *data_out);
+}
 
-#endif /* SRC_CONFIG_H_ */

@@ -26,9 +26,7 @@ int
 load_config(const std::string path,
             std::vector<virtual_channel::sptr> *vc_tm_configs,
             std::vector<virtual_channel::sptr> *vc_tc_configs,
-            struct mission_params *m_params,
-            uint8_t *mc_count,
-            uint8_t *tc_util,
+            struct mission_params *m_params, uint8_t *mc_count, uint8_t *tc_util,
             uint8_t *tm_util)
 {
 
@@ -57,10 +55,9 @@ load_config(const std::string path,
 			                         "COP to initialize (\"fop\" or \"farm\")");
 		}
 
-
 		root.lookupValue("instance", instance);
 
-		if (instance.compare("farm") != 0  && instance.compare("fop") != 0) {
+		if (instance.compare("farm") != 0 && instance.compare("fop") != 0) {
 			throw std::runtime_error("Wrong instance\n");
 		}
 		m_params->instance = instance;
@@ -74,16 +71,20 @@ load_config(const std::string path,
 
 		if (miss.exists("in_port")) {
 			miss.lookupValue("in_port", ret);
-			m_params->in_port = (size_t)ret;
+			m_params->in_port = (size_t) ret;
 		}
 		if (miss.exists("out_port")) {
 			miss.lookupValue("out_port", ret);
-			m_params->out_port = (size_t)ret;
+			m_params->out_port = (size_t) ret;
+		}
+		if (miss.exists("stdout_port")) {
+			miss.lookupValue("stdout_port", ret);
+			m_params->sec_out_port = (size_t) ret;
 		}
 
 		if (miss.exists("tc_max_sdu_len")) {
 			miss.lookupValue("tc_max_sdu_len", ret);
-			m_params->tc_max_sdu_len = (size_t)ret;
+			m_params->tc_max_sdu_len = (size_t) ret;
 		} else {
 #ifdef TC_MAX_SDU_LEN
 			m_params->tc_max_sdu_len = TC_MAX_SDU_LEN;
@@ -95,7 +96,7 @@ load_config(const std::string path,
 
 		if (miss.exists("tc_max_frame_len")) {
 			miss.lookupValue("tc_max_frame_len", ret);
-			m_params->tc_max_frame_len = (size_t)ret;
+			m_params->tc_max_frame_len = (size_t) ret;
 		} else {
 #ifdef TC_MAX_FRAME_LEN
 			m_params->tc_max_frame_len = TC_MAX_FRAME_LEN;
@@ -107,7 +108,7 @@ load_config(const std::string path,
 
 		if (miss.exists("tm_max_sdu_len")) {
 			miss.lookupValue("tm_max_sdu_len", ret);
-			m_params->tm_max_sdu_len = (size_t)ret;
+			m_params->tm_max_sdu_len = (size_t) ret;
 		} else {
 #ifdef TM_MAX_SDU_LEN
 			m_params->tm_max_sdu_len = TM_MAX_SDU_LEN;
@@ -119,7 +120,7 @@ load_config(const std::string path,
 
 		if (miss.exists("tm_frame_len")) {
 			miss.lookupValue("tm_frame_len", ret);
-			m_params->tm_frame_len = (size_t)ret;
+			m_params->tm_frame_len = (size_t) ret;
 		} else {
 #ifdef TM_FRAME_LEN
 			m_params->tm_frame_len = TM_FRAME_LEN;
@@ -130,33 +131,37 @@ load_config(const std::string path,
 		}
 		if (miss.exists("tc_sent_queue_max_cap")) {
 			miss.lookupValue("tc_sent_queue_max_cap", ret);
-			m_params->tc_sent_queue_max_cap = (size_t)ret;
+			m_params->tc_sent_queue_max_cap = (size_t) ret;
 		} else {
-			throw std::runtime_error("Mission params configuration incomplete - "
-			                         "tc_sent_queue_max_cap missing");
+			throw std::runtime_error(
+			        "Mission params configuration incomplete - "
+			        "tc_sent_queue_max_cap missing");
 		}
 
 		if (miss.exists("tc_tx_queue_max_cap")) {
 			miss.lookupValue("tc_tx_queue_max_cap", ret);
-			m_params->tc_tx_queue_max_cap = (size_t)ret;
+			m_params->tc_tx_queue_max_cap = (size_t) ret;
 		} else {
-			throw std::runtime_error("Mission params configuration incomplete - "
-			                         "tc_tx_queue_max_cap missing");
+			throw std::runtime_error(
+			        "Mission params configuration incomplete - "
+			        "tc_tx_queue_max_cap missing");
 		}
 
 		if (miss.exists("tc_rx_queue_max_cap")) {
 			miss.lookupValue("tc_rx_queue_max_cap", ret);
-			m_params->tc_rx_queue_max_cap = (size_t)ret;
+			m_params->tc_rx_queue_max_cap = (size_t) ret;
 		} else {
-			throw std::runtime_error("Mission params configuration incomplete - "
-			                         "tc_rx_queue_max_cap missing");
+			throw std::runtime_error(
+			        "Mission params configuration incomplete - "
+			        "tc_rx_queue_max_cap missing");
 		}
 
 		if (miss.exists("scid")) {
 			miss.lookupValue("scid", scid);
 		} else {
-			throw std::runtime_error("Mission params configuration incomplete - "
-			                         "spacecraft ID missing");
+			throw std::runtime_error(
+			        "Mission params configuration incomplete - "
+			        "spacecraft ID missing");
 		}
 
 		if (!(root.exists("tm") && root.exists("tc"))) {
@@ -185,10 +190,10 @@ load_config(const std::string path,
 			if (tm_t.exists("crc")) {
 				tm_t.lookupValue("crc", crc);
 				if (!(crc == 1 || crc == 0)) {
-					crc = (tm_crc_flag_t)1;
+					crc = (tm_crc_flag_t) 1;
 				}
 			} else {
-				crc = (tm_crc_flag_t)1;
+				crc = (tm_crc_flag_t) 1;
 			}
 			if (tm_t.exists("ocf_flag")) {
 				tm_t.lookupValue("ocf_flag", ocf);
@@ -230,14 +235,18 @@ load_config(const std::string path,
 			} else {
 				stuff_state = (tm_stuff_state_t) 1;
 			}
-			osdlp_tm_init(&tm_f, scid, mc_count, (uint8_t)tm_vcid, (tm_ocf_flag_t) ocf,
-			              (tm_ocf_type_t)ocf_type,
-			              (tm_sec_hdr_flag_t)sec_hdr_on, (tm_sync_flag_t)sync_flag,
-			              0, NULL, (tm_crc_flag_t)crc, m_params->tm_frame_len,
-			              m_params->tm_max_sdu_len, MAX_TM_VCS, 20, (tm_stuff_state_t)stuff_state,
-			              tm_util);
+			std::string tm_name;
+			if (tm_t.exists("vc_name")) {
+				tm_t.lookupValue("vc_name", tm_name);
+			}
+			osdlp_tm_init(&tm_f, scid, mc_count, (uint8_t) tm_vcid,
+			              (tm_ocf_flag_t) ocf, (tm_ocf_type_t) ocf_type,
+			              (tm_sec_hdr_flag_t) sec_hdr_on, (tm_sync_flag_t) sync_flag,
+			              0, NULL, (tm_crc_flag_t) crc, m_params->tm_frame_len,
+			              m_params->tm_max_sdu_len, MAX_TM_VCS, 20,
+			              (tm_stuff_state_t) stuff_state, tm_util);
 			virtual_channel::sptr vc_tm = virtual_channel::make_shared(tm_f,
-			                              tm_f.mission.vcid);
+			                              tm_f.mission.vcid, tm_name);
 			vc_tm_configs->push_back(vc_tm);
 		}
 
@@ -256,9 +265,9 @@ load_config(const std::string path,
 			struct cop_config cop;
 			if (instance.compare("fop") == 0) {
 				if (!(tc_t.exists("fop"))) {
-					std::cerr <<
-					          "TC Configuration incomplete - FOP config missing. Ignorring VC..."
-					          << std::endl;
+					std::cerr
+					                << "TC Configuration incomplete - FOP config missing. Ignorring VC..."
+					                << std::endl;
 					continue;
 				} else {
 					int t1_init, tx_lim, width, tt;
@@ -272,29 +281,28 @@ load_config(const std::string path,
 					if (fop_cfg.exists("transmission_limit")) {
 						fop_cfg.lookupValue("transmission_limit", tx_lim);
 					} else {
-						tx_lim = (uint8_t)3;
+						tx_lim = (uint8_t) 3;
 					}
 
 					if (fop_cfg.exists("win_width")) {
 						fop_cfg.lookupValue("win_width", width);
 					} else {
-						width = (uint8_t)5;
+						width = (uint8_t) 5;
 					}
 
 					if (fop_cfg.exists("timeout_type")) {
 						fop_cfg.lookupValue("timeout_type", tt);
 					} else {
-						tt = (uint8_t)0;
+						tt = (uint8_t) 0;
 					}
-					osdlp_prepare_fop(&cop.fop, (uint8_t)width,
-					                  FOP_STATE_INIT, (uint16_t)t1_init,
-					                  (uint8_t)tt, (uint8_t)tx_lim);
+					osdlp_prepare_fop(&cop.fop, (uint8_t) width, FOP_STATE_INIT,
+					                  (uint16_t) t1_init, (uint8_t) tt, (uint8_t) tx_lim);
 				}
 			} else if (instance.compare("farm") == 0) {
 				if (!(tc_t.exists("farm"))) {
-					std::cerr <<
-					          "TC Configuration incomplete - FARM config missing. Ignorring VC..."
-					          << std::endl;
+					std::cerr
+					                << "TC Configuration incomplete - FARM config missing. Ignorring VC..."
+					                << std::endl;
 					continue;
 				} else {
 					int width;
@@ -304,7 +312,8 @@ load_config(const std::string path,
 					} else {
 						width = 5;
 					}
-					osdlp_prepare_farm(&cop.farm, FARM_STATE_OPEN, (uint16_t)width);
+					osdlp_prepare_farm(&cop.farm, FARM_STATE_OPEN,
+					                   (uint16_t) width);
 				}
 			}
 			int ret;
@@ -330,6 +339,10 @@ load_config(const std::string path,
 			} else {
 				tc_crc = (tc_crc_flag_t) 1;
 			}
+			std::string tc_name;
+			if (tc_t.exists("vc_name")) {
+				tc_t.lookupValue("vc_name", tc_name);
+			}
 			if (!(tc_t.exists("map"))) {
 				throw std::runtime_error(
 				        "TC Configuration incomplete - MAP missing");
@@ -338,10 +351,11 @@ load_config(const std::string path,
 			size_t num_maps = maps.getLength();
 			osdlp_tc_init(&tc_f, scid, m_params->tc_max_sdu_len,
 			              m_params->tc_max_frame_len, m_params->tc_rx_queue_max_cap,
-			              tc_vcid, 0, (tc_crc_flag_t)tc_crc, (tc_seg_hdr_t)seg_hdr_flag,
-			              (tc_bypass_t)0, (tc_ctrl_t)0, tc_util, cop);
+			              tc_vcid, 0, (tc_crc_flag_t) tc_crc,
+			              (tc_seg_hdr_t) seg_hdr_flag, (tc_bypass_t) 0, (tc_ctrl_t) 0,
+			              tc_util, cop);
 			virtual_channel::sptr vc_tc = virtual_channel::make_shared(tc_f,
-			                              tc_f.mission.vcid);
+			                              tc_f.mission.vcid, tc_name);
 			for (int j = 0; j < num_maps; j++) {
 
 				libconfig::Setting &mp = maps[j];
@@ -381,36 +395,48 @@ load_config(const std::string path,
 				std::string data_in;
 				if (mp.exists("data")) {
 					mp.lookupValue("data", data_in);
-				} else {
-					data_in = "";
 				}
-				std::string token;
-				std::istringstream tokenStream(data_in);
-				std::stringstream ss;
-				int val_in;
-				uint8_t val;
-				while (std::getline(tokenStream, token, 'x')) {
-					if (token == "")
-						continue;
-					val_in = std::stoi(token, 0, 16);
-					if (val_in < 0 || val_in > 255) {
-						std::cerr << "Invalid data in MAP " << mapid <<
-						          " VCID " << tc_vcid << " . Ignoring ... " <<
-						          std::endl;
-						data.clear();
-						break;
-					} else {
-						val = (uint8_t) val_in;
-						data.push_back(val);
-						std::cout << (int)val << std::endl;
-					}
+
+				int ret = tokenize(data_in, &data);
+				if (ret) {
+					std::cerr << "Invalid data in MAP " << mapid <<
+					          " VCID " << tc_vcid << " . Ignoring ... " <<
+					          std::endl;
 				}
-				vc_tc->add_map((uint16_t) mapid, bp, ctrl, data);
+				std::string name;
+				if (mp.exists("name")) {
+					mp.lookupValue("name", name);
+				}
+				vc_tc->add_map((uint16_t) mapid, bp, ctrl, data, name);
 			}
 			vc_tc_configs->push_back(vc_tc);
 		}
 	} catch (libconfig::SettingNotFoundException &e) {
 		printf("Essential setting not found\n");
+	}
+	return 0;
+}
+
+int
+tokenize(std::string str, std::vector<uint8_t> *data_out)
+{
+	std::string token;
+	std::istringstream tokenStream(str);
+	std::stringstream ss;
+	int val_in;
+	uint8_t val;
+	while (std::getline(tokenStream, token, 'x')) {
+		if (token == "")
+			continue;
+		val_in = std::stoi(token, 0, 16);
+		if (val_in < 0 || val_in > 255) {
+			data_out->clear();
+			return -1;
+			break;
+		} else {
+			val = (uint8_t) val_in;
+			data_out->push_back(val);
+		}
 	}
 	return 0;
 }
