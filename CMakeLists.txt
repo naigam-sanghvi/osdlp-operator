@@ -20,7 +20,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #@ONLY)
 
 find_package(Config++ REQUIRED)
-find_package(Curses REQUIRED)
 
 add_subdirectory(lib)
 add_subdirectory(src)
