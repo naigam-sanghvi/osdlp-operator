@@ -500,7 +500,7 @@ extern "C" {
 		if (!vc)
 			return -1;
 		std::vector<uint8_t> vec;
-		vec.insert(vec.end(), pkt, &pkt[m_params.tm_frame_len]);
+		vec.insert(vec.end(), pkt, &pkt[m_params.tm_max_sdu_len]);
 		vc->get_rx_queue()->push_back(vec);
 		return 0;
 	}

@@ -271,7 +271,10 @@ qubik_fop_inst::fop_receiver()
 	int n;
 	len = sizeof(servaddr);
 	uint8_t ocf[4];
-	std::string clcw_out;
+	std::string clcw_out, pdu;
+	virtual_channel::sptr vc_tc, vc_tm;
+	struct tc_transfer_frame *tr;
+	struct tm_transfer_frame *tm;
 	while (1) {
 		n = recvfrom(sockfd, (char *) rx_buffer, TM_FRAME_LEN,
 		             MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
@@ -286,7 +289,7 @@ qubik_fop_inst::fop_receiver()
 			if (ret == 3) {
 				log_udp->log_output("RX: Only Idle Data \n");
 			}
-			struct tm_transfer_frame *tm = get_last_tm();
+			tm = get_last_tm();
 			memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
 
 			ocf[0] = tm->ocf[0];
@@ -297,8 +300,9 @@ qubik_fop_inst::fop_receiver()
 			while (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
 				continue;
 			}
-			virtual_channel::sptr vc = get_vc_tc(clcw.vcid);
-			struct tc_transfer_frame *tr = vc->get_tc_config();
+			vc_tc = get_vc_tc(clcw.vcid);
+			vc_tm = get_vc_tm(clcw.vcid);
+			tr = vc_tc->get_tc_config();
 
 			osdlp_handle_clcw(tr, ocf);
 			clcw_out = " Control Word Type: " + std::to_string(clcw.ctrl_word_type)
@@ -315,7 +319,15 @@ qubik_fop_inst::fop_receiver()
 			           + " \nFarm-B Counter: " + std::to_string(clcw.farm_b_counter)
 			           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare2)
 			           + " \nReport Value: " + std::to_string(clcw.report_value) + "\n" ;
+			if (ret != 3) {
+				std::vector<uint8_t> v = vc_tm->get_rx_queue()->front();
+				for (uint8_t i : vc_tm->get_rx_queue()->front())
+					pdu += std::to_string(i);
+
+			}
 			log_udp->log_output(clcw_out);
+			log_udp->log_output(pdu + " \n");
+			pdu.clear();
 			get_lock()->unlock();
 		}
 	}
