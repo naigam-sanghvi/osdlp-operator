@@ -106,6 +106,10 @@ qubik_fop_inst::fop_transmitter()
 	std::string hex_data;
 	std::vector<uint8_t> cmd;
 
+	for (size_t i = 0; i < 28; i++)
+		tx_buf[i] = rand() % 256;
+
+
 	struct virtual_channel::map m;
 	virtual_channel::sptr vc;
 	struct tc_transfer_frame *tr;
@@ -122,6 +126,8 @@ qubik_fop_inst::fop_transmitter()
 			if (vc == NULL) {
 				std::cout << "Invalid VCID " << std::endl;
 				continue;
+			} else {
+				std::cout << "VCID " << std::to_string(input) << " selected" << std::endl;
 			}
 		}
 		tr = vc->get_tc_config();
@@ -274,7 +280,7 @@ qubik_fop_inst::fop_receiver()
 			log_udp->log_output("RX: Received frame . Checking CLCW ... \n");
 			volatile int ret = osdlp_tm_receive(rx_buffer);
 			if (ret < 0) {
-				log_udp->log_output("RX: OSDLP Error, Code : \n");
+				log_udp->log_output("RX: OSDLP Error, Code :" + std::to_string(ret) + " \n");
 				continue;
 			}
 			if (ret == 3) {
@@ -309,6 +315,7 @@ qubik_fop_inst::fop_receiver()
 			           + " \nFarm-B Counter: " + std::to_string(clcw.farm_b_counter)
 			           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare2)
 			           + " \nReport Value: " + std::to_string(clcw.report_value) + "\n" ;
+			log_udp->log_output(clcw_out);
 			get_lock()->unlock();
 		}
 	}
