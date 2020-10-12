@@ -36,6 +36,10 @@ main(int argc, char *argv[])
 {
 	qubik_fop_inst fop = qubik_fop_inst();
 	qubik_farm_inst farm = qubik_farm_inst();
+	if (argc <= 1) {
+		std::cout << "You must specify configuration file. Exiting \n";
+		return 0;
+	}
 	std::string path(argv[1]);
 	init_structs(path);
 	if (get_mission_params().instance.compare("fop") == 0) {

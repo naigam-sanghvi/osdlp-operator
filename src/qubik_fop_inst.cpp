@@ -171,7 +171,7 @@ qubik_fop_inst::fop_transmitter()
 			case FOP_STATE_ACTIVE:
 				if (vc->get_maps()->size() > 0) {
 					std::cout << "Choose MAP " << std::endl;
-					std::cout << "0. Return to VCID selection menu." << std::endl;
+					std::cout << " *   0. Return to VCID selection menu." << std::endl;
 					for (struct virtual_channel::map m : *vc->get_maps()) {
 						std::cout << " *   " << std::to_string(m.mapid)
 						          << " " << m.name << std::endl;
@@ -193,11 +193,17 @@ qubik_fop_inst::fop_transmitter()
 						osdlp_prepare_typea_data_frame(tr, m.data.data(),
 						                               m.data.size());
 						osdlp_tc_transmit(tr, m.data.data(), m.data.size());
+						std::cout << "Command sent" << std::endl;
 						get_lock()->unlock();
 					} else {
-						std::cout << "Insert command in hex format x01x02 etc..." << std::endl;
+						std::cout << "Insert command in hex format x01x02 etc or 0 for return" <<
+						          std::endl;
 						std::cin >> hex_data;
 						cmd.clear();
+						if (hex_data == "0") {
+							active_vcid = -1;
+							break;
+						}
 						int ret = tokenize(hex_data, &cmd);
 						if (ret) {
 							std::cout << "Invalid data. Returning to main menu..." << std::endl;
