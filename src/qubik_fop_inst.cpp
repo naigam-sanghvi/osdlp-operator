@@ -191,7 +191,7 @@ qubik_fop_inst::fop_transmitter()
 							continue;
 						}
 						osdlp_prepare_typea_data_frame(tr, m.data.data(),
-						                               m.data.size());
+						                               m.data.size(), m.mapid);
 						osdlp_tc_transmit(tr, m.data.data(), m.data.size());
 						std::cout << "Command sent" << std::endl;
 						get_lock()->unlock();
@@ -214,7 +214,7 @@ qubik_fop_inst::fop_transmitter()
 							continue;
 						}
 						osdlp_prepare_typea_data_frame(tr, cmd.data(),
-						                               cmd.size());
+						                               cmd.size(), 0);
 						osdlp_tc_transmit(tr, cmd.data(), cmd.size());
 						get_lock()->unlock();
 					}
