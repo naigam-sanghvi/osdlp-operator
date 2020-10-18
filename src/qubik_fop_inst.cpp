@@ -16,6 +16,7 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <iosfwd>
+#include <ctype.h>
 
 #include "queue_api.h"
 #include "virtualchannel.h"
@@ -102,13 +103,14 @@ qubik_fop_inst::fop_transmitter()
 	thread_handle.push_back(t.native_handle());
 	t.detach();
 
+	std::string in;
 	int input;
+	int v_in;
 	std::string hex_data;
 	std::vector<uint8_t> cmd;
 
 	for (size_t i = 0; i < 28; i++)
 		tx_buf[i] = rand() % 256;
-
 
 	struct virtual_channel::map m;
 	virtual_channel::sptr vc;
@@ -117,8 +119,8 @@ qubik_fop_inst::fop_transmitter()
 		if (active_vcid == -1) {
 			std::cout << "Insert VCID " << std::endl;
 			for (virtual_channel::sptr vc : *get_tc_configs()) {
-				std::cout << "* " << std::to_string(vc->get_vcid()) <<
-				          " " << vc->get_tc_name() << std::endl;
+				std::cout << "* " << std::to_string(vc->get_vcid()) << " "
+				          << vc->get_tc_name() << std::endl;
 			}
 			std::cin >> input;
 			std::cout << std::endl;
@@ -127,7 +129,8 @@ qubik_fop_inst::fop_transmitter()
 				std::cout << "Invalid VCID " << std::endl;
 				continue;
 			} else {
-				std::cout << "VCID " << std::to_string(input) << " selected" << std::endl;
+				std::cout << "VCID " << std::to_string(input) << " selected"
+				          << std::endl;
 			}
 		}
 		tr = vc->get_tc_config();
@@ -145,7 +148,14 @@ qubik_fop_inst::fop_transmitter()
 				                << std::endl;
 				std::cin >> input;
 				std::cout << std::endl;
-
+				if (input == 3) {
+					std::cout << "Insert new V(R) : ";
+					std::cin >> v_in;
+					if (v_in < 0 || v_in > 255) {
+						std::cout << "Invalid V(R) \n";
+						continue;
+					}
+				}
 				if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
 					continue;
 				}
@@ -160,7 +170,7 @@ qubik_fop_inst::fop_transmitter()
 						osdlp_initiate_no_clcw(tr);
 						break;
 					case 3:
-						osdlp_initiate_with_setvr(tr, 0);
+						osdlp_initiate_with_setvr(tr, v_in);
 						break;
 					case 4:
 						osdlp_initiate_with_unlock(tr);
@@ -171,12 +181,49 @@ qubik_fop_inst::fop_transmitter()
 			case FOP_STATE_ACTIVE:
 				if (vc->get_maps()->size() > 0) {
 					std::cout << "Choose MAP " << std::endl;
-					std::cout << " *   0. Return to VCID selection menu." << std::endl;
+					std::cout << " *   0. Return to VCID selection menu."
+					          << std::endl;
 					for (struct virtual_channel::map m : *vc->get_maps()) {
-						std::cout << " *   " << std::to_string(m.mapid)
-						          << " " << m.name << std::endl;
+						std::cout << " *   " << std::to_string(m.mapid) << " "
+						          << m.name << std::endl;
 					}
-					std::cin >> input;
+					std::cout
+					                << " *  's' [osdlp] Set new V(S) (Local frame sequence number)"
+					                << std::endl;
+					std::cout
+					                << " *  't' [osdlp] Terminate local osdlp service (Reset)"
+					                << std::endl;
+					std::cout << " *  'r' [osdlp] Resume" << std::endl;
+					std::cin >> in;
+					if (!isdigit(in[0])) {
+						if (in[0] == 's') {
+							std::cout << "Insert new V(S) : ";
+							std::cin >> input;
+							input = std::atoi(in.data());
+							if (input < 0 || input > 255) {
+								std::cout << "Invalid V(S) \n";
+								break;
+							}
+						}
+						if (!get_lock()->try_lock_for(
+						            std::chrono::milliseconds(2000))) {
+							continue;
+						}
+						switch (in[0]) {
+							case 's':
+								osdlp_set_new_vs(tr, input);
+								break;
+							case 't':
+								osdlp_terminate_ad(tr);
+								break;
+							case 'r':
+								osdlp_resume_ad(tr);
+								break;
+						}
+						get_lock()->unlock();
+						continue;
+					}
+					input = std::atoi(in.data());
 					if (input == 0) {
 						active_vcid = -1;
 						break;
@@ -187,7 +234,8 @@ qubik_fop_inst::fop_transmitter()
 					std::cout << std::endl;
 					m = (*vc->get_maps())[input - 1];
 					if (m.data.size() > 0) {
-						if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
+						if (!get_lock()->try_lock_for(
+						            std::chrono::milliseconds(2000))) {
 							continue;
 						}
 						osdlp_prepare_typea_data_frame(tr, m.data.data(),
@@ -196,8 +244,9 @@ qubik_fop_inst::fop_transmitter()
 						std::cout << "Command sent" << std::endl;
 						get_lock()->unlock();
 					} else {
-						std::cout << "Insert command in hex format x01x02 etc or 0 for return" <<
-						          std::endl;
+						std::cout
+						                << "Insert command in hex format x01x02 etc or 0 for return"
+						                << std::endl;
 						std::cin >> hex_data;
 						cmd.clear();
 						if (hex_data == "0") {
@@ -206,15 +255,17 @@ qubik_fop_inst::fop_transmitter()
 						}
 						int ret = tokenize(hex_data, &cmd);
 						if (ret) {
-							std::cout << "Invalid data. Returning to main menu..." << std::endl;
+							std::cout << "Invalid data. Returning to main menu..."
+							          << std::endl;
 							active_vcid = -1;
 							break;
 						}
-						if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
+						if (!get_lock()->try_lock_for(
+						            std::chrono::milliseconds(2000))) {
 							continue;
 						}
-						osdlp_prepare_typea_data_frame(tr, cmd.data(),
-						                               cmd.size(), 0);
+						osdlp_prepare_typea_data_frame(tr, cmd.data(), cmd.size(),
+						                               0);
 						osdlp_tc_transmit(tr, cmd.data(), cmd.size());
 						get_lock()->unlock();
 					}
@@ -228,20 +279,57 @@ qubik_fop_inst::fop_transmitter()
 				break;
 			case FOP_STATE_INIT_BC:
 			case FOP_STATE_INIT_NO_BC:
-				std::cout << "Waiting for response to arrive... " << std::endl;
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-				active_vcid = -1;
-				break;
 			case FOP_STATE_RT_NO_WAIT:
-				std::cout << "Retransmitting... Returning to main menu "
-				          << std::endl;
-				active_vcid = -1;
-				break;
 			case FOP_STATE_RT_WAIT:
+				if (tr->cop_cfg.fop.state == FOP_STATE_INIT_BC
+				    || tr->cop_cfg.fop.state == FOP_STATE_INIT_NO_BC) {
+					std::cout << "Waiting for response to arrive... " << std::endl;
+					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				} else if (tr->cop_cfg.fop.state == FOP_STATE_RT_NO_WAIT) {
+					std::cout << "Retransmitting... Returning to main menu "
+					          << std::endl;
+				} else if (tr->cop_cfg.fop.state == FOP_STATE_RT_WAIT) {
+					std::cout
+					                << "Retransmitting... Spacecraft sent WAIT. Returning to main menu "
+					                << std::endl;
+				}
 				std::cout
-				                << "Retransmitting... Spacecraft sent WAIT. Returning to main menu "
+				                << " *  's' [osdlp] Set new V(S) (Local frame sequence number)"
 				                << std::endl;
-				active_vcid = -1;
+				std::cout << " *  't' [osdlp] Terminate local osdlp service (Reset)"
+				          << std::endl;
+				std::cout << " *  'r' [osdlp] Resume" << std::endl;
+				std::cout << " *  '0' [osdlp] Wait. Continue to main menu" << std::endl;
+				std::cin >> in;
+				if (in[0] == 's') {
+					std::cout << "Insert new V(S) : ";
+					std::cin >> input;
+					input = std::atoi(in.data());
+					if (input < 0 || input > 255) {
+						std::cout << "Invalid V(S) \n";
+						break;
+					}
+				}
+				if (!get_lock()->try_lock_for(
+				            std::chrono::milliseconds(2000))) {
+					continue;
+				}
+				switch (in[0]) {
+					case 's':
+						osdlp_set_new_vs(tr, input);
+						break;
+					case 't':
+						osdlp_terminate_ad(tr);
+						break;
+					case 'r':
+						osdlp_resume_ad(tr);
+						break;
+					case '0':
+						active_vcid = -1;
+						break;
+				}
+				get_lock()->unlock();
+				continue;
 				break;
 		}
 	}
@@ -286,7 +374,9 @@ qubik_fop_inst::fop_receiver()
 			log_udp->log_output("RX: Received frame . Checking CLCW ... \n");
 			volatile int ret = osdlp_tm_receive(rx_buffer);
 			if (ret < 0) {
-				log_udp->log_output("RX: OSDLP Error, Code :" + std::to_string(ret) + " \n");
+				log_udp->log_output(
+				        "RX: OSDLP Error, Code :" + std::to_string(ret)
+				        + " \n");
 				continue;
 			}
 			if (ret == 3) {
@@ -307,20 +397,23 @@ qubik_fop_inst::fop_receiver()
 			struct tc_transfer_frame *tr = vc->get_tc_config();
 
 			osdlp_handle_clcw(tr, ocf);
-			clcw_out = " Control Word Type: " + std::to_string(clcw.ctrl_word_type)
+			clcw_out = " Control Word Type: "
+			           + std::to_string(clcw.ctrl_word_type)
 			           + " \nCLCW Version Number : "
-			           + std::to_string(clcw.clcw_version_num) + " \nStatus field: "
-			           + std::to_string(clcw.status_field) + " \nCOP in Effect: "
-			           + std::to_string(clcw.cop_in_effect) + " \nVCID: "
-			           + std::to_string(clcw.vcid) + " \nRSVD Spare: "
-			           + std::to_string(clcw.rsvd_spare1) + " \nNo RF Available FLAG:"
-			           + std::to_string(clcw.rf_avail) + " \nNo Bit Lock FLAG: "
-			           + std::to_string(clcw.bit_lock) + " \nLockout FLAG: "
-			           + std::to_string(clcw.lockout) + " \nWait FLAG: " + std::to_string(clcw.wait)
+			           + std::to_string(clcw.clcw_version_num)
+			           + " \nStatus field: " + std::to_string(clcw.status_field)
+			           + " \nCOP in Effect: " + std::to_string(clcw.cop_in_effect)
+			           + " \nVCID: " + std::to_string(clcw.vcid)
+			           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare1)
+			           + " \nNo RF Available FLAG:" + std::to_string(clcw.rf_avail)
+			           + " \nNo Bit Lock FLAG: " + std::to_string(clcw.bit_lock)
+			           + " \nLockout FLAG: " + std::to_string(clcw.lockout)
+			           + " \nWait FLAG: " + std::to_string(clcw.wait)
 			           + " \nRetransmit FLAG: " + std::to_string(clcw.rt)
-			           + " \nFarm-B Counter: " + std::to_string(clcw.farm_b_counter)
-			           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare2)
-			           + " \nReport Value: " + std::to_string(clcw.report_value) + "\n" ;
+			           + " \nFarm-B Counter: "
+			           + std::to_string(clcw.farm_b_counter) + " \nRSVD Spare: "
+			           + std::to_string(clcw.rsvd_spare2) + " \nReport Value: "
+			           + std::to_string(clcw.report_value) + "\n";
 			log_udp->log_output(clcw_out);
 			get_lock()->unlock();
 		}

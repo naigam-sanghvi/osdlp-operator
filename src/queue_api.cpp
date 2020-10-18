@@ -147,7 +147,8 @@ timer(uint16_t vcid)
 					osdlp_handle_timer_expired(tr);
 					if (tr->cop_cfg.fop.signal >= 5
 					    && tr->cop_cfg.fop.signal <= 12) {
-						std::cout << "Alert! " << std::endl;
+						std::cout << "Alert! Probably retrnamission limit reached. Alert code : " <<
+						          std::to_string(tr->cop_cfg.fop.signal) << std::endl;
 					}
 					lock.unlock();
 				}
