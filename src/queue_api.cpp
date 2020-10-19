@@ -518,7 +518,8 @@ extern "C" {
 		if (!vc)
 			return -1;
 		std::vector<uint8_t> vec;
-		vec.insert(vec.end(), pkt, &pkt[m_params.tm_frame_len]);
+		uint16_t len = pkt[1] << 8 | pkt[0];
+		vec.insert(vec.end(), pkt, &pkt[len + 2]);
 		vc->get_tx_queue()->push_back(vec);
 		return 0;
 	}
@@ -529,7 +530,8 @@ extern "C" {
 		if (!vc)
 			return -1;
 		std::vector<uint8_t> vec;
-		vec.insert(vec.end(), pkt, &pkt[m_params.tm_frame_len]);
+		uint16_t len = pkt[1] << 8 | pkt[0];
+		vec.insert(vec.end(), pkt, &pkt[len + 2]);
 		vc->get_rx_queue()->push_back(vec);
 		return 0;
 	}
@@ -537,7 +539,7 @@ extern "C" {
 	int osdlp_tm_get_packet_len(uint16_t *length, uint8_t *pkt, uint16_t mem_len)
 	{
 		if (mem_len >= 5) {
-			if (((pkt[1] << 8) | pkt[0]) <= m_params.tm_frame_len) {
+			if (((pkt[1] << 8) | pkt[0]) <= m_params.tm_max_sdu_len) {
 				*length = ((pkt[1] << 8) | pkt[0]) + sizeof(uint16_t); // Add the length bytes
 				return 0;
 			} else {
