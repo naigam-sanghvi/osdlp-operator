@@ -538,7 +538,7 @@ extern "C" {
 	{
 		if (mem_len >= 5) {
 			if (((pkt[1] << 8) | pkt[0]) <= m_params.tm_frame_len) {
-				*length = ((pkt[1] << 8) | pkt[0]);
+				*length = ((pkt[1] << 8) | pkt[0]) + sizeof(uint16_t); // Add the length bytes
 				return 0;
 			} else {
 				return -1;
