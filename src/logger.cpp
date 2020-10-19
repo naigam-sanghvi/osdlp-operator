@@ -41,14 +41,19 @@ logger::logger(uint16_t port)
 }
 
 void
-logger::log_output(std::string out_str)
+logger::log_output(std::string out_str, bool rm_n)
 {
 	std::time_t n = std::chrono::system_clock::to_time_t(
 	                        std::chrono::system_clock::now());
-	std::string out_time = std::string(std::ctime(&n)) + ": " + out_str;
-	out_time.erase(std::remove(out_time.begin(), out_time.end(), '\n'),
-	               out_time.end());
-	out_time += "\n";
+	std::string out_time;
+	if (rm_n) {
+		out_time = std::string(std::ctime(&n)) + ": " + out_str;
+		out_time.erase(std::remove(out_time.begin(), out_time.end(), '\n'),
+		               out_time.end());
+		out_time += "\n";
+	} else {
+		out_time = out_str;
+	}
 	sendto(d_sockfd, out_time.data(), out_time.size(),
 	       MSG_CONFIRM, (const struct sockaddr *) &d_servaddr, sizeof(d_servaddr));
 }

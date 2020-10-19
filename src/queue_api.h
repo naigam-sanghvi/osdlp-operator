@@ -64,5 +64,11 @@ get_vc_tm(uint16_t id);
 std::unique_lock<std::timed_mutex> *
 get_lock();
 
+int
+osdlp_tm_rx_queue_dequeue(uint8_t *buffer, uint16_t *length, uint16_t vcid);
+
+bool
+osdlp_tm_rx_queue_empty(uint16_t vcid);
+
 
 #endif /* INCLUDE_QUEUE_API_H_ */

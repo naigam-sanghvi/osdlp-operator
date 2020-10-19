@@ -37,8 +37,12 @@ public:
 
 	~logger();
 
+	/**
+	 * @param string to print to stdout
+	 * @param rm_n remove new line chars
+	 */
 	void
-	log_output(std::string);
+	log_output(std::string, bool rm_n);
 
 protected:
 	logger(uint16_t port);

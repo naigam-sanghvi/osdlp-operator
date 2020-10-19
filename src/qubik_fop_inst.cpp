@@ -17,6 +17,8 @@
 #include <iostream>
 #include <iosfwd>
 #include <ctype.h>
+#include <sstream>
+#include <iomanip>
 
 #include "queue_api.h"
 #include "virtualchannel.h"
@@ -43,22 +45,23 @@ qubik_fop_inst::forward_frames(int sockfd, struct sockaddr_in servaddr)
 	int n, len;
 	while (1) {
 		for (virtual_channel::sptr vc : *get_tc_configs()) {
-			if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
-				continue;
-			}
 			while (vc->get_tx_queue()->size() > 0) {
+				if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
+					continue;
+				}
 				pt = &vc->get_tx_queue()->front()[0];
 				memcpy(tx_buf, pt,
 				       vc->get_tc_config()->primary_hdr.frame_len + 1);
+				vc->get_tx_queue()->pop_front();
+				get_lock()->unlock();
 				log_udp->log_output(
 				        "VCID: " + std::to_string(vc->get_vcid())
-				        + " TX: Frame sent \n");
+				        + " TX: Frame sent \n", true);
 				sendto(sockfd, tx_buf, 28,
 				       MSG_CONFIRM, (const struct sockaddr *) &servaddr,
 				       sizeof(servaddr));
-				vc->get_tx_queue()->pop_front();
 			}
-			get_lock()->unlock();
+
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -241,8 +244,8 @@ qubik_fop_inst::fop_transmitter()
 						osdlp_prepare_typea_data_frame(tr, m.data.data(),
 						                               m.data.size(), m.mapid);
 						osdlp_tc_transmit(tr, m.data.data(), m.data.size());
-						std::cout << "Command sent" << std::endl;
 						get_lock()->unlock();
+						std::cout << "Command sent" << std::endl;
 					} else {
 						std::cout
 						                << "Insert command in hex format x01x02 etc or 0 for return"
@@ -366,23 +369,37 @@ qubik_fop_inst::fop_receiver()
 	len = sizeof(servaddr);
 	uint8_t ocf[4];
 	std::string clcw_out;
+	std::stringstream hexStringStream;
+	uint8_t rx_payload[1024];
+	uint16_t rx_length;
 	while (1) {
 		n = recvfrom(sockfd, (char *) rx_buffer, TM_FRAME_LEN,
 		             MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
 
 		if (n > 0) {
-			log_udp->log_output("RX: Received frame . Checking CLCW ... \n");
+			log_udp->log_output("RX: Received frame . Checking CLCW ... \n", true);
 			volatile int ret = osdlp_tm_receive(rx_buffer);
 			if (ret < 0) {
 				log_udp->log_output(
 				        "RX: OSDLP Error, Code :" + std::to_string(ret)
-				        + " \n");
+				        + " \n", true);
 				continue;
 			}
-			if (ret == 3) {
-				log_udp->log_output("RX: Only Idle Data \n");
-			}
 			struct tm_transfer_frame *tm = get_last_tm();
+			if (ret == 3) {
+				log_udp->log_output("RX: Only Idle Data \n", true);
+			} else {
+				if (!osdlp_tm_rx_queue_empty(tm->primary_hdr.vcid)) {
+					osdlp_tm_rx_queue_dequeue(rx_payload, &rx_length, tm->primary_hdr.vcid);
+					for (int i = 0; i < rx_length; i++) {
+						hexStringStream << "0x" << std::hex << std::setw(2) << std::setfill('0')
+						                << (uint32_t(rx_payload[i]) & 0xFF) << " ";
+					}
+				}
+				log_udp->log_output("Payload : " + hexStringStream.str() + "\n", true);
+				hexStringStream.str(std::string());
+			}
+
 			memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
 
 			ocf[0] = tm->ocf[0];
@@ -397,7 +414,8 @@ qubik_fop_inst::fop_receiver()
 			struct tc_transfer_frame *tr = vc->get_tc_config();
 
 			osdlp_handle_clcw(tr, ocf);
-			clcw_out = " Control Word Type: "
+			get_lock()->unlock();
+			clcw_out = "Control Word Type: "
 			           + std::to_string(clcw.ctrl_word_type)
 			           + " \nCLCW Version Number : "
 			           + std::to_string(clcw.clcw_version_num)
@@ -414,8 +432,9 @@ qubik_fop_inst::fop_receiver()
 			           + std::to_string(clcw.farm_b_counter) + " \nRSVD Spare: "
 			           + std::to_string(clcw.rsvd_spare2) + " \nReport Value: "
 			           + std::to_string(clcw.report_value) + "\n";
-			log_udp->log_output(clcw_out);
-			get_lock()->unlock();
+			log_udp->log_output(clcw_out, true);
+			log_udp->log_output("\n\n", false);
+
 		}
 	}
 }

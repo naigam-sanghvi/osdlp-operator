@@ -118,6 +118,34 @@ get_vc_tc(uint16_t id)
 	return NULL;
 }
 
+int
+osdlp_tm_rx_queue_dequeue(uint8_t *buffer, uint16_t *length, uint16_t vcid)
+{
+	virtual_channel::sptr vc = get_vc_tm(vcid);
+	if (!vc)
+		return -1;
+	uint16_t len = (vc->get_rx_queue()->front()[1] << 8) |
+	               vc->get_rx_queue()->front()[0];
+	*length = len;
+
+	memcpy(buffer, &vc->get_rx_queue()->front().data()[2], len * sizeof(uint8_t));
+	vc->get_rx_queue()->pop_front();
+	return 0;
+}
+
+bool
+osdlp_tm_rx_queue_empty(uint16_t vcid)
+{
+	virtual_channel::sptr vc = get_vc_tm(vcid);
+	if (!vc)
+		return false;
+	if (vc->get_rx_queue()->size() == 0) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 void
 timer(uint16_t vcid)
 {
@@ -145,12 +173,12 @@ timer(uint16_t vcid)
 					}
 					timer_running[vcid] = false;
 					osdlp_handle_timer_expired(tr);
+					lock.unlock();
 					if (tr->cop_cfg.fop.signal >= 5
 					    && tr->cop_cfg.fop.signal <= 12) {
 						std::cout << "Alert! Probably retrnamission limit reached. Alert code : " <<
 						          std::to_string(tr->cop_cfg.fop.signal) << std::endl;
 					}
-					lock.unlock();
 				}
 
 			}
