@@ -268,7 +268,7 @@ qubik_fop_inst::fop_transmitter()
 							continue;
 						}
 						osdlp_prepare_typea_data_frame(tr, cmd.data(), cmd.size(),
-						                               0);
+						                               m.mapid);
 						osdlp_tc_transmit(tr, cmd.data(), cmd.size());
 						get_lock()->unlock();
 					}
