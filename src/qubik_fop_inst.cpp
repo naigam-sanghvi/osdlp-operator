@@ -32,7 +32,7 @@ extern "C" {
 
 std::vector<unsigned long int> thread_handle;
 logger::sptr log_udp;
-uint8_t tx_buf[28];
+uint8_t tx_buf[TC_MAX_FRAME_LEN];
 int active_vcid = -1;
 
 qubik_fop_inst::link_state_t st = qubik_fop_inst::NOT_CONNECTED;
@@ -57,7 +57,7 @@ qubik_fop_inst::forward_frames(int sockfd, struct sockaddr_in servaddr)
 				log_udp->log_output(
 				        "VCID: " + std::to_string(vc->get_vcid())
 				        + " TX: Frame sent \n", true);
-				sendto(sockfd, tx_buf, 28,
+				sendto(sockfd, tx_buf, TC_MAX_FRAME_LEN,
 				       MSG_CONFIRM, (const struct sockaddr *) &servaddr,
 				       sizeof(servaddr));
 			}

@@ -26,10 +26,10 @@
 #define INPUT_PORT   6667
 #define OUTPUT_ADDR  "127.0.0.1"
 
-#define TC_MAX_SDU_LEN 1024
-#define TC_MAX_FRAME_LEN 128
-#define TM_MAX_SDU_LEN 1024
-#define TM_FRAME_LEN 128-32
+#define TC_MAX_SDU_LEN (1024)
+#define TC_MAX_FRAME_LEN (32)
+#define TM_MAX_SDU_LEN (1024)
+#define TM_FRAME_LEN (128)
 #define MAX_TM_VCS 8
 
 #define __cplusplus 201703L
