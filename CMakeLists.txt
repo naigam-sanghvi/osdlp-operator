@@ -6,7 +6,7 @@ project(osdlp-operator LANGUAGES C CXX VERSION 1.0)
 # Make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
-SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread -lncurses -ltinfo")
+SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread")
 
 set(CMAKE_BUILD_TYPE "RelwithDebInfo")
 
