@@ -377,7 +377,7 @@ qubik_fop_inst::fop_receiver()
 		             MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
 
 		if (n > 0) {
-			log_udp->log_output("RX: Received frame . Checking CLCW ... \n", true);
+			log_udp->log_output("RX: Received frame.\n", true);
 			volatile int ret = osdlp_tm_receive(rx_buffer);
 			if (ret < 0) {
 				log_udp->log_output(
@@ -396,8 +396,12 @@ qubik_fop_inst::fop_receiver()
 						                << (uint32_t(rx_payload[i]) & 0xFF) << " ";
 					}
 				}
-				log_udp->log_output("Payload : " + hexStringStream.str() + "\n", true);
+				log_udp->log_output("RX: VCID = " + std::to_string(tm->primary_hdr.vcid) +
+				                    "\n Payload : " + hexStringStream.str() + "\n", true);
 				hexStringStream.str(std::string());
+			}
+			if (!tm->primary_hdr.ocf == TM_OCF_PRESENT) {
+				continue;
 			}
 
 			memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
