@@ -124,8 +124,8 @@ osdlp_tm_rx_queue_dequeue(uint8_t *buffer, uint16_t *length, uint16_t vcid)
 	virtual_channel::sptr vc = get_vc_tm(vcid);
 	if (!vc)
 		return -1;
-	uint16_t len = (vc->get_rx_queue()->front()[1] << 8) |
-	               vc->get_rx_queue()->front()[0];
+	uint16_t len = (vc->get_rx_queue()->front()[0] << 8) |
+	               vc->get_rx_queue()->front()[1];
 	*length = len;
 
 	memcpy(buffer, &vc->get_rx_queue()->front().data()[2], len * sizeof(uint8_t));
@@ -518,7 +518,7 @@ extern "C" {
 		if (!vc)
 			return -1;
 		std::vector<uint8_t> vec;
-		uint16_t len = pkt[1] << 8 | pkt[0];
+		uint16_t len = pkt[0] << 8 | pkt[1];
 		vec.insert(vec.end(), pkt, &pkt[len + 2]);
 		vc->get_tx_queue()->push_back(vec);
 		return 0;
@@ -530,7 +530,7 @@ extern "C" {
 		if (!vc)
 			return -1;
 		std::vector<uint8_t> vec;
-		uint16_t len = pkt[1] << 8 | pkt[0];
+		uint16_t len = pkt[0] << 8 | pkt[1];
 		vec.insert(vec.end(), pkt, &pkt[len + 2]);
 		vc->get_rx_queue()->push_back(vec);
 		return 0;
@@ -539,8 +539,8 @@ extern "C" {
 	int osdlp_tm_get_packet_len(uint16_t *length, uint8_t *pkt, uint16_t mem_len)
 	{
 		if (mem_len >= 5) {
-			if (((pkt[1] << 8) | pkt[0]) <= m_params.tm_max_sdu_len) {
-				*length = ((pkt[1] << 8) | pkt[0]) + sizeof(uint16_t); // Add the length bytes
+			if (((pkt[0] << 8) | pkt[1]) <= m_params.tm_max_sdu_len) {
+				*length = ((pkt[0] << 8) | pkt[1]) + sizeof(uint16_t); // Add the length bytes
 				return 0;
 			} else {
 				return -1;

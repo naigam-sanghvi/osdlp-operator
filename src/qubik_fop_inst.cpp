@@ -387,7 +387,7 @@ qubik_fop_inst::fop_receiver()
 
 		if (n > 0) {
 			log_udp->log_output("RX: Received frame.\n", true);
-			volatile int ret = osdlp_tm_receive(rx_buffer);
+			int ret = osdlp_tm_receive(rx_buffer);
 			if (ret < 0) {
 				log_udp->log_output(
 				        "RX: OSDLP Error, Code :" + std::to_string(ret)
