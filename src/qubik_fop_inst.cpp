@@ -46,6 +46,7 @@ qubik_fop_inst::forward_frames(int sockfd, struct sockaddr_in servaddr)
 	while (1) {
 		for (virtual_channel::sptr vc : *get_tc_configs()) {
 			while (vc->get_tx_queue()->size() > 0) {
+				memset(tx_buf, 0x33, TC_MAX_FRAME_LEN);
 				if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
 					continue;
 				}
