@@ -411,12 +411,15 @@ qubik_fop_inst::fop_receiver()
 			ocf[2] = tm->ocf[2];
 			ocf[3] = tm->ocf[3];
 			osdlp_clcw_unpack(&clcw, ocf);
+			virtual_channel::sptr vc = get_vc_tc(clcw.vcid);
+			if (vc == NULL) {
+				log_udp->log_output("RX: Wrong VCID\n", true);
+				continue;
+			}
+			struct tc_transfer_frame *tr = vc->get_tc_config();
 			while (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
 				continue;
 			}
-			virtual_channel::sptr vc = get_vc_tc(clcw.vcid);
-			struct tc_transfer_frame *tr = vc->get_tc_config();
-
 			osdlp_handle_clcw(tr, ocf);
 			get_lock()->unlock();
 			clcw_out = "Control Word Type: "
