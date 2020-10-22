@@ -111,6 +111,7 @@ qubik_fop_inst::fop_transmitter()
 	int v_in;
 	std::string hex_data;
 	std::vector<uint8_t> cmd;
+	bool map_found;
 
 	for (size_t i = 0; i < 28; i++)
 		tx_buf[i] = rand() % 256;
@@ -231,11 +232,19 @@ qubik_fop_inst::fop_transmitter()
 						active_vcid = -1;
 						break;
 					}
-					if (input < 0 || input > vc->get_maps()->size()) {
-						std::cout << "Wrong MAP id";
+					for (virtual_channel::map vm : *vc->get_maps()) {
+						if (vm.mapid == input) {
+							m = vm;
+							map_found = true;
+							break;
+						}
 					}
+					if (map_found == false) {
+						std::cout << "Wrong MAP id";
+						continue;
+					}
+					map_found = false;
 					std::cout << std::endl;
-					m = (*vc->get_maps())[input - 1];
 					if (m.data.size() > 0) {
 						if (!get_lock()->try_lock_for(
 						            std::chrono::milliseconds(2000))) {
