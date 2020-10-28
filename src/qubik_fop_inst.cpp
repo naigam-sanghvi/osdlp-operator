@@ -251,8 +251,13 @@ qubik_fop_inst::fop_transmitter()
 						            std::chrono::milliseconds(2000))) {
 							continue;
 						}
-						osdlp_prepare_typea_data_frame(tr, m.data.data(),
-						                               m.data.size(), m.mapid);
+						if (m.bypass == 0) {
+							osdlp_prepare_typea_data_frame(tr, m.data.data(),
+							                               m.data.size(), m.mapid);
+						} else if (m.bypass == 1) {
+							osdlp_prepare_typeb_data_frame(tr, m.data.data(),
+							                               m.data.size(), m.mapid);
+						}
 						osdlp_tc_transmit(tr, m.data.data(), m.data.size());
 						get_lock()->unlock();
 						std::cout << "Command sent" << std::endl;
@@ -277,8 +282,13 @@ qubik_fop_inst::fop_transmitter()
 						            std::chrono::milliseconds(2000))) {
 							continue;
 						}
-						osdlp_prepare_typea_data_frame(tr, cmd.data(), cmd.size(),
-						                               m.mapid);
+						if (m.bypass == 0) {
+							osdlp_prepare_typea_data_frame(tr, cmd.data(),
+							                               cmd.size(), m.mapid);
+						} else if (m.bypass == 1) {
+							osdlp_prepare_typeb_data_frame(tr, cmd.data(),
+							                               cmd.size(), m.mapid);
+						}
 						osdlp_tc_transmit(tr, cmd.data(), cmd.size());
 						get_lock()->unlock();
 					}
