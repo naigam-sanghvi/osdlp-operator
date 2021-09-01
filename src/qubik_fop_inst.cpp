@@ -122,9 +122,9 @@ qubik_fop_inst::fop_transmitter()
 	struct tc_transfer_frame *tr;
 	while (1) {
 		if (active_vcid == -1) {
-			std::cout << "Insert VCID " << std::endl;
+			std::cout << "==> Insert VCID " << std::endl;
 			for (virtual_channel::sptr vc : *get_tc_configs()) {
-				std::cout << "* " << std::to_string(vc->get_vcid()) << " "
+				std::cout << "" << std::to_string(vc->get_vcid()) << " | "
 				          << vc->get_tc_name() << std::endl;
 			}
 			std::cin >> input;
@@ -144,12 +144,12 @@ qubik_fop_inst::fop_transmitter()
 		switch (tr->cop_cfg.fop.state) {
 			case FOP_STATE_INIT:
 				std::cout
-				                << "Insert initialization option : \n"
-				                "0. Return to VCID selection menu. \n"
-				                "1. Initiate with CLCW (Just wait until a packet arrives) \n"
-				                "2. Initiate no CLCW (Don't expect anything. We begin. \n"
-				                "3. Initiate with Set V(R) (Sends a command. Good for ping) \n"
-				                "4. Initiate with Unlock. (Another command. Also good for ping) \n "
+				                << "==> Insert initialization option : \n"
+				                "0 | Return to VCID selection menu. \n"
+				                "1 | Initiate with CLCW (Just wait until a packet arrives) \n"
+				                "2 | Initiate no CLCW (Don't expect anything. Begin TX) \n"
+				                "3 | Initiate with Set V(R) (Sends a command. Good for ping) \n"
+				                "4 | Initiate with Unlock. (Another command. Also good for ping) \n "
 				                << std::endl;
 				std::cin >> input;
 				std::cout << std::endl;
@@ -185,20 +185,20 @@ qubik_fop_inst::fop_transmitter()
 				break;
 			case FOP_STATE_ACTIVE:
 				if (vc->get_maps()->size() > 0) {
-					std::cout << "Choose MAP " << std::endl;
-					std::cout << " *   0. Return to VCID selection menu."
+					std::cout << "==> Choose MAP " << std::endl;
+					std::cout << "0 | Return to VCID selection menu."
 					          << std::endl;
 					for (struct virtual_channel::map m : *vc->get_maps()) {
-						std::cout << " *   " << std::to_string(m.mapid) << " "
+						std::cout << "" << std::to_string(m.mapid) << " | "
 						          << m.name << std::endl;
 					}
 					std::cout
-					                << " *  's' [osdlp] Set new V(S) (Local frame sequence number)"
+					                << "s | [osdlp] Set new V(S) (Local frame sequence number)"
 					                << std::endl;
 					std::cout
-					                << " *  't' [osdlp] Terminate local osdlp service (Reset)"
+					                << "t | [osdlp] Terminate local osdlp service (Reset)"
 					                << std::endl;
-					std::cout << " *  'r' [osdlp] Resume" << std::endl;
+					std::cout << "r | [osdlp] Resume" << std::endl;
 					std::cin >> in;
 					if (!isdigit(in[0])) {
 						if (in[0] == 's') {
@@ -317,12 +317,12 @@ qubik_fop_inst::fop_transmitter()
 					                << std::endl;
 				}
 				std::cout
-				                << " *  's' [osdlp] Set new V(S) (Local frame sequence number)"
+				                << "s | [osdlp] Set new V(S) (Local frame sequence number)"
 				                << std::endl;
-				std::cout << " *  't' [osdlp] Terminate local osdlp service (Reset)"
+				std::cout << "t | [osdlp] Terminate local osdlp service (Reset)"
 				          << std::endl;
-				std::cout << " *  'r' [osdlp] Resume" << std::endl;
-				std::cout << " *  '0' [osdlp] Wait. Continue to main menu" << std::endl;
+				std::cout << "r | [osdlp] Resume" << std::endl;
+				std::cout << "0 | [osdlp] Wait. Continue to main menu" << std::endl;
 				std::cin >> in;
 				if (in[0] == 's') {
 					std::cout << "Insert new V(S) : ";
