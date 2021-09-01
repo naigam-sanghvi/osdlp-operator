@@ -96,7 +96,7 @@ qubik_fop_inst::fop_transmitter()
 	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(get_mission_params().out_port);
-	servaddr.sin_addr.s_addr = inet_addr(OUTPUT_ADDR);
+	servaddr.sin_addr.s_addr = inet_addr(get_mission_params().host_ip.c_str());
 
 	for (virtual_channel::sptr vc : *get_tc_configs()) {
 		std::thread tim(timer, vc->get_vcid());

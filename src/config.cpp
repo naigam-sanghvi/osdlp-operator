@@ -68,6 +68,7 @@ load_config(const std::string path,
 
 		const libconfig::Setting &miss = root["mission"];
 		int ret;
+		std::string ip;
 
 		if (miss.exists("in_port")) {
 			miss.lookupValue("in_port", ret);
@@ -80,6 +81,10 @@ load_config(const std::string path,
 		if (miss.exists("stdout_port")) {
 			miss.lookupValue("stdout_port", ret);
 			m_params->sec_out_port = (size_t) ret;
+		}
+		if (miss.exists("host_ip")) {
+			miss.lookupValue("host_ip", ip);
+			m_params->host_ip = ip;
 		}
 
 		if (miss.exists("tc_max_sdu_len")) {

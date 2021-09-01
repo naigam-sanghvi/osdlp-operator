@@ -56,6 +56,7 @@ struct mission_params {
 	size_t in_port;
 	size_t out_port;
 	size_t sec_out_port;
+	std::string host_ip;
 	std::string instance;
 };
 
