@@ -33,8 +33,9 @@ std::vector<virtual_channel::sptr> vc_tc_configs;
 struct mission_params m_params;
 uint8_t mc_count;
 
+
 std::vector<uint8_t>
-pkt(TC_MAX_FRAME_LEN, 0);
+pkt(TC_MAX_FRAME_LEN);
 
 std::deque<unsigned long int> thread_vec;
 
@@ -355,11 +356,17 @@ extern "C" {
 
 	int osdlp_tc_tx_queue_enqueue(uint8_t *buffer, uint16_t vcid)
 	{
+		pkt.clear();
+
 		virtual_channel::sptr vc = get_vc_tc(vcid);
 		if (!vc)
 			return -1;
-		uint16_t length = (((buffer[2] & 0x03) << 8) | buffer[3]) + 1;
-		pkt.assign(buffer, buffer + length);
+		volatile uint16_t length = (((buffer[2] & 0x03) << 8) | buffer[3]) + 1;
+
+		for (int i = 0; i < length; i++) {
+			pkt.push_back(buffer[i]);
+		}
+
 		int ret = 0;
 		if (vc->get_tx_queue()->size() < m_params.tc_tx_queue_max_cap) {
 			vc->get_tx_queue()->push_back(pkt);
