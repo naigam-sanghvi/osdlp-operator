@@ -150,6 +150,7 @@ qubik_fop_inst::fop_transmitter()
 				                "2 | Initiate no CLCW (Don't expect anything. Begin TX) \n"
 				                "3 | Initiate with Set V(R) (Sends a command. Good for ping) \n"
 				                "4 | Initiate with Unlock. (Another command. Also good for ping) \n "
+				                "5 | [osdlp] Set new V(S) (Local frame sequence number) \n "
 				                << std::endl;
 				std::cin >> input;
 				std::cout << std::endl;
@@ -179,6 +180,16 @@ qubik_fop_inst::fop_transmitter()
 						break;
 					case 4:
 						osdlp_initiate_with_unlock(tr);
+						break;
+					case 5:
+						std::cout << "Insert new V(S) : ";
+						std::cin >> input;
+						//input = std::atoi(in.data());
+						if (input < 0 || input > 255) {
+							std::cout << "Invalid V(S) \n";
+							break;
+						}
+						osdlp_set_new_vs(tr, input);
 						break;
 				}
 				get_lock()->unlock();
@@ -392,6 +403,7 @@ qubik_fop_inst::fop_receiver()
 	std::stringstream hexStringStream;
 	uint8_t rx_payload[1024];
 	uint16_t rx_length;
+	volatile uint8_t state;
 	while (1) {
 		n = recvfrom(sockfd, (char *) rx_buffer, TM_FRAME_LEN,
 		             MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
@@ -420,48 +432,70 @@ qubik_fop_inst::fop_receiver()
 				                    "\n Payload : " + hexStringStream.str() + "\n", true);
 				hexStringStream.str(std::string());
 			}
-			if (!tm->primary_hdr.ocf == TM_OCF_PRESENT) {
-				continue;
-			}
+			if (!(tm->primary_hdr.ocf == TM_OCF_PRESENT)) {
+				if (tm->primary_hdr.vcid == 1) {
+					virtual_channel::sptr vc;
+					memcpy(ocf, (tm->data + 64), 4 * sizeof(uint8_t));
+					osdlp_clcw_unpack(&clcw, ocf);
+					vc = get_vc_tc(clcw.vcid);
+					if (vc == NULL) {
+						log_udp->log_output("RX: Wrong VCID 1\n", true);
+						continue;
+					}
+					struct tc_transfer_frame *tr = vc->get_tc_config();
+					tr = vc->get_tc_config();
+					osdlp_handle_clcw(tr, ocf);
 
-			memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
+					memcpy(ocf, (tm->data + 72), 4 * sizeof(uint8_t));
+					osdlp_clcw_unpack(&clcw, ocf);
+					vc = get_vc_tc(clcw.vcid);
+					if (vc == NULL) {
+						log_udp->log_output("RX: Wrong VCID\n", true);
+						continue;
+					}
+					tr = vc->get_tc_config();
+					osdlp_handle_clcw(tr, ocf);
 
-			ocf[0] = tm->ocf[0];
-			ocf[1] = tm->ocf[1];
-			ocf[2] = tm->ocf[2];
-			ocf[3] = tm->ocf[3];
-			osdlp_clcw_unpack(&clcw, ocf);
-			virtual_channel::sptr vc = get_vc_tc(clcw.vcid);
-			if (vc == NULL) {
-				log_udp->log_output("RX: Wrong VCID\n", true);
-				continue;
+					memcpy(ocf, (tm->data + 76), 4 * sizeof(uint8_t));
+					osdlp_clcw_unpack(&clcw, ocf);
+					vc = get_vc_tc(clcw.vcid);
+					if (vc == NULL) {
+						log_udp->log_output("RX: Wrong VCID\n", true);
+						continue;
+					}
+					tr = vc->get_tc_config();
+					osdlp_handle_clcw(tr, ocf);
+				}
+			} else {
+				memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
+				osdlp_clcw_unpack(&clcw, ocf);
+				virtual_channel::sptr vc = get_vc_tc(clcw.vcid);
+				if (vc == NULL) {
+					log_udp->log_output("RX: Wrong VCID0\n", true);
+					continue;
+				}
+				struct tc_transfer_frame *tr = vc->get_tc_config();
+				osdlp_handle_clcw(tr, ocf);
+				clcw_out = "Control Word Type: "
+				           + std::to_string(clcw.ctrl_word_type)
+				           + " \nCLCW Version Number : "
+				           + std::to_string(clcw.clcw_version_num)
+				           + " \nStatus field: " + std::to_string(clcw.status_field)
+				           + " \nCOP in Effect: " + std::to_string(clcw.cop_in_effect)
+				           + " \nVCID: " + std::to_string(clcw.vcid)
+				           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare1)
+				           + " \nNo RF Available FLAG:" + std::to_string(clcw.rf_avail)
+				           + " \nNo Bit Lock FLAG: " + std::to_string(clcw.bit_lock)
+				           + " \nLockout FLAG: " + std::to_string(clcw.lockout)
+				           + " \nWait FLAG: " + std::to_string(clcw.wait)
+				           + " \nRetransmit FLAG: " + std::to_string(clcw.rt)
+				           + " \nFarm-B Counter: "
+				           + std::to_string(clcw.farm_b_counter) + " \nRSVD Spare: "
+				           + std::to_string(clcw.rsvd_spare2) + " \nReport Value: "
+				           + std::to_string(clcw.report_value) + "\n";
+				log_udp->log_output(clcw_out, true);
+				log_udp->log_output("\n\n", false);
 			}
-			struct tc_transfer_frame *tr = vc->get_tc_config();
-			while (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
-				continue;
-			}
-			osdlp_handle_clcw(tr, ocf);
-			get_lock()->unlock();
-			clcw_out = "Control Word Type: "
-			           + std::to_string(clcw.ctrl_word_type)
-			           + " \nCLCW Version Number : "
-			           + std::to_string(clcw.clcw_version_num)
-			           + " \nStatus field: " + std::to_string(clcw.status_field)
-			           + " \nCOP in Effect: " + std::to_string(clcw.cop_in_effect)
-			           + " \nVCID: " + std::to_string(clcw.vcid)
-			           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare1)
-			           + " \nNo RF Available FLAG:" + std::to_string(clcw.rf_avail)
-			           + " \nNo Bit Lock FLAG: " + std::to_string(clcw.bit_lock)
-			           + " \nLockout FLAG: " + std::to_string(clcw.lockout)
-			           + " \nWait FLAG: " + std::to_string(clcw.wait)
-			           + " \nRetransmit FLAG: " + std::to_string(clcw.rt)
-			           + " \nFarm-B Counter: "
-			           + std::to_string(clcw.farm_b_counter) + " \nRSVD Spare: "
-			           + std::to_string(clcw.rsvd_spare2) + " \nReport Value: "
-			           + std::to_string(clcw.report_value) + "\n";
-			log_udp->log_output(clcw_out, true);
-			log_udp->log_output("\n\n", false);
-
 		}
 	}
 }
