@@ -445,6 +445,25 @@ qubik_fop_inst::fop_receiver()
 					struct tc_transfer_frame *tr = vc->get_tc_config();
 					tr = vc->get_tc_config();
 					osdlp_handle_clcw(tr, ocf);
+					clcw_out = "Control Word Type: "
+					           + std::to_string(clcw.ctrl_word_type)
+					           + " \nCLCW Version Number : "
+					           + std::to_string(clcw.clcw_version_num)
+					           + " \nStatus field: " + std::to_string(clcw.status_field)
+					           + " \nCOP in Effect: " + std::to_string(clcw.cop_in_effect)
+					           + " \nVCID: " + std::to_string(clcw.vcid)
+					           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare1)
+					           + " \nNo RF Available FLAG:" + std::to_string(clcw.rf_avail)
+					           + " \nNo Bit Lock FLAG: " + std::to_string(clcw.bit_lock)
+					           + " \nLockout FLAG: " + std::to_string(clcw.lockout)
+					           + " \nWait FLAG: " + std::to_string(clcw.wait)
+					           + " \nRetransmit FLAG: " + std::to_string(clcw.rt)
+					           + " \nFarm-B Counter: "
+					           + std::to_string(clcw.farm_b_counter) + " \nRSVD Spare: "
+					           + std::to_string(clcw.rsvd_spare2) + " \nReport Value: "
+					           + std::to_string(clcw.report_value) + "\n";
+					log_udp->log_output(clcw_out, true);
+					log_udp->log_output("\n\n", false);
 
 					memcpy(ocf, (tm->data + 72), 4 * sizeof(uint8_t));
 					osdlp_clcw_unpack(&clcw, ocf);
@@ -455,6 +474,25 @@ qubik_fop_inst::fop_receiver()
 					}
 					tr = vc->get_tc_config();
 					osdlp_handle_clcw(tr, ocf);
+					clcw_out = "Control Word Type: "
+					           + std::to_string(clcw.ctrl_word_type)
+					           + " \nCLCW Version Number : "
+					           + std::to_string(clcw.clcw_version_num)
+					           + " \nStatus field: " + std::to_string(clcw.status_field)
+					           + " \nCOP in Effect: " + std::to_string(clcw.cop_in_effect)
+					           + " \nVCID: " + std::to_string(clcw.vcid)
+					           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare1)
+					           + " \nNo RF Available FLAG:" + std::to_string(clcw.rf_avail)
+					           + " \nNo Bit Lock FLAG: " + std::to_string(clcw.bit_lock)
+					           + " \nLockout FLAG: " + std::to_string(clcw.lockout)
+					           + " \nWait FLAG: " + std::to_string(clcw.wait)
+					           + " \nRetransmit FLAG: " + std::to_string(clcw.rt)
+					           + " \nFarm-B Counter: "
+					           + std::to_string(clcw.farm_b_counter) + " \nRSVD Spare: "
+					           + std::to_string(clcw.rsvd_spare2) + " \nReport Value: "
+					           + std::to_string(clcw.report_value) + "\n";
+					log_udp->log_output(clcw_out, true);
+					log_udp->log_output("\n\n", false);
 
 					memcpy(ocf, (tm->data + 76), 4 * sizeof(uint8_t));
 					osdlp_clcw_unpack(&clcw, ocf);
@@ -465,6 +503,25 @@ qubik_fop_inst::fop_receiver()
 					}
 					tr = vc->get_tc_config();
 					osdlp_handle_clcw(tr, ocf);
+					clcw_out = "Control Word Type: "
+					           + std::to_string(clcw.ctrl_word_type)
+					           + " \nCLCW Version Number : "
+					           + std::to_string(clcw.clcw_version_num)
+					           + " \nStatus field: " + std::to_string(clcw.status_field)
+					           + " \nCOP in Effect: " + std::to_string(clcw.cop_in_effect)
+					           + " \nVCID: " + std::to_string(clcw.vcid)
+					           + " \nRSVD Spare: " + std::to_string(clcw.rsvd_spare1)
+					           + " \nNo RF Available FLAG:" + std::to_string(clcw.rf_avail)
+					           + " \nNo Bit Lock FLAG: " + std::to_string(clcw.bit_lock)
+					           + " \nLockout FLAG: " + std::to_string(clcw.lockout)
+					           + " \nWait FLAG: " + std::to_string(clcw.wait)
+					           + " \nRetransmit FLAG: " + std::to_string(clcw.rt)
+					           + " \nFarm-B Counter: "
+					           + std::to_string(clcw.farm_b_counter) + " \nRSVD Spare: "
+					           + std::to_string(clcw.rsvd_spare2) + " \nReport Value: "
+					           + std::to_string(clcw.report_value) + "\n";
+					log_udp->log_output(clcw_out, true);
+					log_udp->log_output("\n\n", false);
 				}
 			} else {
 				memcpy(ocf, tm->ocf, 4 * sizeof(uint8_t));
