@@ -47,7 +47,7 @@ qubik_fop_inst::forward_frames(int sockfd, struct sockaddr_in servaddr)
 		for (virtual_channel::sptr vc : *get_tc_configs()) {
 			while (vc->get_tx_queue()->size() > 0) {
 				memset(tx_buf, 0x33, TC_MAX_FRAME_LEN);
-				if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
+				if (!get_lock()->try_lock_for(std::chrono::milliseconds(1000))) {
 					continue;
 				}
 				pt = &vc->get_tx_queue()->front()[0];
@@ -162,7 +162,7 @@ qubik_fop_inst::fop_transmitter()
 						continue;
 					}
 				}
-				if (!get_lock()->try_lock_for(std::chrono::milliseconds(2000))) {
+				if (!get_lock()->try_lock_for(std::chrono::milliseconds(1000))) {
 					continue;
 				}
 				switch (input) {
@@ -222,7 +222,7 @@ qubik_fop_inst::fop_transmitter()
 							}
 						}
 						if (!get_lock()->try_lock_for(
-						            std::chrono::milliseconds(2000))) {
+						            std::chrono::milliseconds(1000))) {
 							continue;
 						}
 						switch (in[0]) {
@@ -259,7 +259,7 @@ qubik_fop_inst::fop_transmitter()
 					std::cout << std::endl;
 					if (m.data.size() > 0) {
 						if (!get_lock()->try_lock_for(
-						            std::chrono::milliseconds(2000))) {
+						            std::chrono::milliseconds(1000))) {
 							continue;
 						}
 						if (m.bypass == 0) {
@@ -290,7 +290,7 @@ qubik_fop_inst::fop_transmitter()
 							break;
 						}
 						if (!get_lock()->try_lock_for(
-						            std::chrono::milliseconds(2000))) {
+						            std::chrono::milliseconds(1000))) {
 							continue;
 						}
 						if (m.bypass == 0) {
@@ -345,7 +345,7 @@ qubik_fop_inst::fop_transmitter()
 					}
 				}
 				if (!get_lock()->try_lock_for(
-				            std::chrono::milliseconds(2000))) {
+				            std::chrono::milliseconds(1000))) {
 					continue;
 				}
 				switch (in[0]) {
